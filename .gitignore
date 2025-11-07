@@ -1,3 +1,21 @@
+
+# Custom
+
+class_material/
+
+
+# Extensions
+
+*.png
+*.log
+*.jpeg
+*.jpg
+*.gif
+*.bmp
+*.tiff
+*.pdf
+*.mp4
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
