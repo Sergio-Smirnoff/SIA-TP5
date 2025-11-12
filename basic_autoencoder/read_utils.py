@@ -40,7 +40,19 @@ font3 = np.array([
     ]
 )
 
-def read_character(character_idx):
+def get_font3():
+    return font3
+
+def to_binary_array(character: np.ndarray):
+    bin_array = np.zeros((7, 5), dtype=int)
+    for row in range(0, 7):
+        current_row = character[row]
+        for col in range(0, 5):
+            bin_array[row][4-col] = current_row & 1
+            current_row >>= 1
+    return bin_array
+
+def read_character_from_font3(character_idx):
     """
         Reads a character from the font3 array and converts it to a binary 7x5 array.
         Args:
@@ -56,18 +68,23 @@ def read_character(character_idx):
     character = np.copy(font3[character_idx])
     character.resize(7, 1)
 
-    #convert to binary array
-    bin_array = np.zeros(5, dtype=int)
-    for i in range(0,5):
-        bin_array[4-i] = character[0] & 1
-        character[0] >>= 1
-    bin_array.resize(1, 5)
+    return to_binary_array(character)
+   
 
-    bin_array = np.zeros((7, 5), dtype=int)
-    for row in range(0, 7):
-        current_row = character[row]
-        for col in range(0, 5):
-            bin_array[row][4-col] = current_row & 1
-            current_row >>= 1
-    return bin_array
+
+def plot_character(character: np.ndarray,  output_path: str):
+    """
+        Plots a character represented as a binary 7x5 array and saves it to a file.
+        Args:
+            character (np.ndarray): 7x5 binary array representing the character.
+            output_path (str): Path to save the plotted character image.
+    """
+    heatmap(
+        character, 
+        linewidths=0.2, 
+        cbar=False, 
+        square=True,
+        cmap=plt.get_cmap('binary'), 
+        linecolor='k')
+    plt.savefig(output_path)
 

@@ -11,7 +11,7 @@ class BasicAutoencoder:
             self,
             # ej: [input_size, l1_hidden_size, l2_hidden_size, l3_hidden_size, output_size] 
             # l1 == l2, input_size == output_size, l2 == 2 as middle layer always 2
-            architecture, 
+            architecture=[35, 16, 8, 2, 8, 16, 35], 
             learning_rate=0.01,
             epsilon=1e-4,
             optimizer='sgd',
