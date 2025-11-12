@@ -43,6 +43,10 @@ font3 = np.array([
 def read_character(character_idx):
     """
         Reads a character from the font3 array and converts it to a binary 7x5 array.
+        Args:
+            character_idx (int): Index of the character to read (0-63).
+        Returns:
+            np.ndarray: 7x5 binary array representing the character.
     """
 
     if character_idx<0 or character_idx >= font3.shape[0]:
