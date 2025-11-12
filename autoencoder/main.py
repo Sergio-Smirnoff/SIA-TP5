@@ -3,12 +3,16 @@ from matplotlib.cbook import flatten
 import numpy as np
 import matplotlib.pyplot as plt
 from autoenconder import BasicAutoencoder
+import logging as log
+
 from read_utils import plot_character, get_font3, to_binary_array
 
 INPUT_SIZE = 5 * 7
 LATENT_SIZE = 2
 EPOCHS = 1000
 TEST_TRIES = 100
+
+log.basicConfig(level=log.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main():
 

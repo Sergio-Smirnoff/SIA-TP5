@@ -91,6 +91,8 @@ class BasicAutoencoder:
         
         A = X
         for i in range(self.n_layers - 1):
+            log.debug("Layer {}: Input shape A: {}".format(i+1, np.array(A).shape))
+            log.debug("Layer {}: Weights shape: {}, Biases shape: {}".format(i+1, self.weights[i].shape, self.biases[i].shape))
             Z = np.dot(A, self.weights[i]) + self.biases[i]
             if i < len(self.weights) - 1:
                 A = self.activation(Z)
