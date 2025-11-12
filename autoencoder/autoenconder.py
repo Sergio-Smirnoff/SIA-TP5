@@ -101,7 +101,7 @@ class BasicAutoencoder:
 
             z_values.append(Z)
             activations.append(A)
-            log.debug("Layer {}: Z: {}, A: {}".format(i+1, Z, A))
+            #log.debug("Layer {}: Z: {}, A: {}".format(i+1, Z, A))
         
         log.info("Forward propagation completed.")
 
@@ -132,6 +132,10 @@ class BasicAutoencoder:
                 dz = dA * sigmoid_derivative(z_values[i])
             else:
                 dz = dA * self.activation_derivative(z_values[i])
+
+
+            log.debug("Layer {}: dz shape: {}".format(i+1, dz.shape))
+            log.debug("Layer {}: T shape: {}".format(i+1, activations[i].T.shape))
 
             dW[i] = np.dot(activations[i].T, dz) / m
             db[i] = np.sum(dz, axis=0, keepdims=True) / m
@@ -181,6 +185,8 @@ class BasicAutoencoder:
 
         losses = []
 
+        X = X.reshape(1, -1)  # Ensure X is 2D
+
         log.info("Starting training for {} epochs...".format(epochs))
         for epoch in range(epochs):
             activations, z_values = self.forward(X)
@@ -199,7 +205,7 @@ class BasicAutoencoder:
 
     def predict(self, X):
         """Predict output for given input X."""
-        A = X
+        A = X.reshape(1, -1)
         for i in range(len(self.weights)):
             z = np.dot(A, self.weights[i]) + self.biases[i]
             if i < len(self.weights) - 1:
@@ -210,7 +216,7 @@ class BasicAutoencoder:
     
     def get_latent_representation(self, X):
         """Find the representation of X in the latent space."""
-        A = X
+        A = X.reshape(1, -1)
         latent_layer_idx = len(self.weights) // 2
         
         for i in range(latent_layer_idx):

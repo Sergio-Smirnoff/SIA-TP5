@@ -12,7 +12,7 @@ LATENT_SIZE = 2
 EPOCHS = 1000
 TEST_TRIES = 100
 
-log.basicConfig(level=log.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+log.basicConfig(level=log.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def flatten(matrix):
     return matrix.flatten()
@@ -34,9 +34,9 @@ def main():
     binary_characters = [to_binary_array(character) for character in characters]
     binary_characters_flattened = [flatten(character) for character in binary_characters]
 
-    for epoch in range(EPOCHS):
+    for epoch in range(1):
         for character_flattened in binary_characters_flattened:
-            print("Training on character: {}".format(character_flattened))
+            #print("Training on character: {}".format(character_flattened))
             encoder.train(character_flattened)
 
     #test 
