@@ -205,6 +205,7 @@ class BasicAutoencoder:
     def predict(self, X):
         """Predict output for given input X."""
         A = X
+        A = X
         for i in range(len(self.weights)):
             z = np.dot(A, self.weights[i]) + self.biases[i]
             if i < len(self.weights) - 1:
@@ -215,7 +216,7 @@ class BasicAutoencoder:
     
     def get_latent_representation(self, X):
         """Find the representation of X in the latent space."""
-        A = X.reshape(1, -1)
+        A = X
         latent_layer_idx = len(self.weights) // 2
         
         for i in range(latent_layer_idx):
