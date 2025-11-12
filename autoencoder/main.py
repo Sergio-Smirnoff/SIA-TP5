@@ -1,8 +1,8 @@
-from seaborn import heatmap
+
+from matplotlib.cbook import flatten
 import numpy as np
 import matplotlib.pyplot as plt
 from autoenconder import BasicAutoencoder
-
 from read_utils import plot_character, get_font3, to_binary_array
 
 INPUT_SIZE = 5 * 7
@@ -24,9 +24,10 @@ def main():
     #train
     characters = get_font3()
     binary_characters = [to_binary_array(character) for character in characters]
+    binary_characters_flattened = [flatten(character) for character in binary_characters]
 
     for epoch in range(EPOCHS):
-        encoder.train(binary_characters)
+        encoder.train(binary_characters_flattened)
 
     #test 
     results = [0]*32 #one for each pattern
