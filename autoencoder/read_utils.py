@@ -1,6 +1,6 @@
 
 
-# from seaborn import heatmap
+from seaborn import heatmap
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -79,14 +79,14 @@ def plot_character(character: np.ndarray,  output_path: str):
             character (np.ndarray): 7x5 binary array representing the character.
             output_path (str): Path to save the plotted character image.
     """
-    # heatmap(
-    #     character, 
-    #     linewidths=0.2, 
-    #     cbar=False, 
-    #     square=True,
-    #     cmap=plt.get_cmap('binary'), 
-    #     linecolor='k')
-    # plt.savefig(output_path)
-    pass
+    heatmap(
+        character, 
+        linewidths=0.2, 
+        cbar=False, 
+        square=True,
+        cmap=plt.get_cmap('binary'), 
+        linecolor='k')
+    plt.savefig(output_path)
+
 
 

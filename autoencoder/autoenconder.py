@@ -2,6 +2,7 @@
 import sys
 import logging as log
 import numpy as np
+from tqdm import tqdm
 from activation_functions import sigmoid, sigmoid_derivative, relu, relu_derivative, tanh, tanh_derivative
 
 
@@ -187,7 +188,7 @@ class BasicAutoencoder:
 
 
         log.info("Starting training for {} epochs...".format(epochs))
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs)):
             activations, z_values = self.forward(X)
             loss = self.compute_loss(activations[-1], Y)
             losses.append(loss)
