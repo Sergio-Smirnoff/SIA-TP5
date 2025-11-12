@@ -1,7 +1,7 @@
 from seaborn import heatmap
 import numpy as np
 import matplotlib.pyplot as plt
-
+from autoenconder import BasicAutoencoder
 
 from read_utils import plot_character, get_font3, to_binary_array
 
@@ -12,25 +12,28 @@ TEST_TRIES = 100
 
 def main():
 
-
-
-    # encoder = BasicAutoencoder()
+    encoder = BasicAutoencoder(
+        [35, 16, 8, 2],
+        learning_rate=0.01,
+        epsilon=1e-4,
+        optimizer='sgd',
+        activation_function='sigmoid',
+        seed=42
+    )
 
     #train
     characters = get_font3()
     binary_characters = [to_binary_array(character) for character in characters]
 
     for epoch in range(EPOCHS):
-        for binary_character in binary_characters:
-            #encoder.train()
-            pass
+        encoder.train(binary_characters)
 
     #test 
     results = [0]*32 #one for each pattern
 
     for i in range(TEST_TRIES):
         for idx, character in enumerate(binary_characters):
-            # result = encoder.forward()
+            result = encoder.predict(character)
             results[idx] += 1 if result == character else 0
             
             #plot some results

@@ -2,7 +2,7 @@
 import sys
 import logging as log
 import numpy as np
-from autoencoder.activation_functions import sigmoid, sigmoid_derivative, relu, relu_derivative, tanh, tanh_derivative
+from activation_functions import sigmoid, sigmoid_derivative, relu, relu_derivative, tanh, tanh_derivative
 
 
 class BasicAutoencoder:
@@ -11,7 +11,7 @@ class BasicAutoencoder:
             self,
             # ej: [input_size, l1_hidden_size, l2_hidden_size] 
             # l1 == l2, input_size == output_size, l2 == 2 as middle layer always 2
-            architecture=[35, 16, 8, 2, 8, 16, 35], 
+            architecture=[35, 16, 8, 2], 
             learning_rate=0.01,
             epsilon=1e-4,
             optimizer='sgd',
