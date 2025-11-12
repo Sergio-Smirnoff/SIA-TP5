@@ -1,5 +1,5 @@
 
-from matplotlib.cbook import flatten
+
 import numpy as np
 import matplotlib.pyplot as plt
 from autoenconder import BasicAutoencoder
@@ -13,6 +13,10 @@ EPOCHS = 1000
 TEST_TRIES = 100
 
 log.basicConfig(level=log.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def flatten(matrix):
+    return matrix.flatten()
+
 
 def main():
 
@@ -31,7 +35,9 @@ def main():
     binary_characters_flattened = [flatten(character) for character in binary_characters]
 
     for epoch in range(EPOCHS):
-        encoder.train(binary_characters_flattened)
+        for character_flattened in binary_characters_flattened:
+            print("Training on character: {}".format(character_flattened))
+            encoder.train(character_flattened)
 
     #test 
     results = [0]*32 #one for each pattern
@@ -39,7 +45,7 @@ def main():
     for i in range(TEST_TRIES):
         for idx, character in enumerate(binary_characters):
             result = encoder.predict(character)
-            results[idx] += 1 if result == character else 0
+            results[idx] += 1 if result == character.flatten() else 0
             
             #plot some results
             if i % (TEST_TRIES/10) == 0:
