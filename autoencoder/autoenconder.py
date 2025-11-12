@@ -185,7 +185,6 @@ class BasicAutoencoder:
 
         losses = []
 
-        X = X.reshape(1, -1)  # Ensure X is 2D
 
         log.info("Starting training for {} epochs...".format(epochs))
         for epoch in range(epochs):
@@ -205,7 +204,7 @@ class BasicAutoencoder:
 
     def predict(self, X):
         """Predict output for given input X."""
-        A = X.reshape(1, -1)
+        A = X
         for i in range(len(self.weights)):
             z = np.dot(A, self.weights[i]) + self.biases[i]
             if i < len(self.weights) - 1:

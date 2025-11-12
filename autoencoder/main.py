@@ -32,7 +32,7 @@ def main():
     #train
     characters = get_font3()
     binary_characters = [to_binary_array(character) for character in characters]
-    binary_characters_flattened = [flatten(character) for character in binary_characters]
+    binary_characters_flattened = [character.reshape(1, -1) for character in binary_characters]
 
     for epoch in range(1):
         for character_flattened in binary_characters_flattened:
@@ -45,7 +45,7 @@ def main():
     for i in range(TEST_TRIES):
         for idx, character in enumerate(binary_characters):
             result = encoder.predict(character)
-            results[idx] += 1 if result == character.flatten() else 0
+            results[idx] += 1 if result == character.reshape(1, -1) else 0
             
             #plot some results
             if i % (TEST_TRIES/10) == 0:
