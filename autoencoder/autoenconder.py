@@ -3,6 +3,7 @@ import sys
 import logging as log
 import numpy as np
 from tqdm import tqdm
+import re
 from activation_functions import sigmoid, sigmoid_derivative, relu, relu_derivative, tanh, tanh_derivative
 
 
@@ -266,3 +267,75 @@ class BasicAutoencoder:
         new_latent = new_latent.reshape(1, -1)
         new_char = self.decode_from_latent(new_latent)
         return (new_char > 0.5).astype(float)
+    
+    def save_state(self, filename):
+        """Save model state to a file."""
+
+        network_data = [ 
+            {
+                'weights': entry[0],
+                'bias': entry[1]
+            }
+            for entry in zip(self.weights, self.biases)
+        ]
+
+        print("Weights: {}".format(network_data))
+
+        with open("outputs/{}".format(filename), 'w') as f:
+            for entry in network_data:
+                f.write(f"{entry}\n")
+                
+        log.info("Model state saved to {}".format(filename))
+    
+    def load_network_state(filename):
+        """
+        Carga los pesos y bias de una red neuronal desde un archivo.
+        
+        Args:
+            filename (str): Ruta al archivo con los pesos y bias
+            
+        Returns:
+            tuple: (weights_list, biases_list) donde cada elemento es un numpy array
+        """
+        weights_list = []
+        biases_list = []
+        
+        with open(filename, 'r') as f:
+            content = f.read()
+        
+        # Dividir por líneas que contienen diccionarios completos
+        # Usamos un patrón que identifica el inicio de cada diccionario
+        layer_strings = re.split(r'\n(?=\{\'weights\':)', content)
+        layer_strings = [s.strip() for s in layer_strings if s.strip()]
+        
+        for layer_str in layer_strings:
+            try:
+                # Evaluar el string como diccionario de Python
+                layer_dict = eval(layer_str)
+                
+                # Extraer weights y bias
+                weights = layer_dict['weights']
+                bias = layer_dict['bias']
+                
+                # Convertir a numpy arrays si no lo son ya
+                if not isinstance(weights, np.ndarray):
+                    weights = np.array(weights)
+                if not isinstance(bias, np.ndarray):
+                    bias = np.array(bias)
+                
+                weights_list.append(weights)
+                biases_list.append(bias)
+                
+            except Exception as e:
+                print(f"Error procesando capa: {e}")
+                continue
+        
+        return weights_list, biases_list
+    
+    def initialize_from_file(self, filename):
+        """Initialize model weights and biases from a file."""
+        weights, biases = self.load_network_state(filename)
+        self.weights = weights
+        self.biases = biases
+        self.n_layers = len(self.weights) + 1
+        log.info("Model state loaded from {}".format(filename))

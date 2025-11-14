@@ -1,5 +1,6 @@
 
 
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from autoenconder import BasicAutoencoder
@@ -11,7 +12,7 @@ LATENT_SIZE = 2
 EPOCHS = 1000
 TEST_TRIES = 100
 
-log.basicConfig(level=log.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+log.basicConfig(level=log.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def compare_arrays(arr1, arr2) -> bool:
@@ -35,7 +36,7 @@ def main():
     for epoch in range(1):
         for character_flattened in binary_characters_flattened:
             #print("Training on character: {}".format(character_flattened))
-            encoder.train(character_flattened, character_flattened, 100000)
+            encoder.train(character_flattened, character_flattened, 10000)
 
     #test 
     for idx, character in enumerate(binary_characters_flattened):
@@ -48,6 +49,8 @@ def main():
         output = output.reshape(7, 5)
         print(character)
         plot_character(output, output_path="outputs/character_{}.png".format(idx + 1))
+
+    encoder.save_state("autoencoder_state_{}.txt".format(time.time()))
 
 
 
