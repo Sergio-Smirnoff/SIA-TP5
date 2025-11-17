@@ -242,6 +242,7 @@ __marimo__/
 # outputs
 /outputs
 /results
+*.txt
 
 #environments
 .env

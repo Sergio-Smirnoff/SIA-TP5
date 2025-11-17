@@ -189,7 +189,8 @@ class BasicAutoencoder:
 
 
         log.info("Starting training for {} epochs...".format(epochs))
-        for epoch in tqdm(range(epochs)):
+        # for epoch in tqdm(range(epochs)):
+        for epoch in range(epochs):
             activations, z_values = self.forward(X)
             loss = self.compute_loss(activations[-1], Y)
             losses.append(loss)
@@ -279,7 +280,7 @@ class BasicAutoencoder:
             for entry in zip(self.weights, self.biases)
         ]
 
-        print("Weights: {}".format(network_data))
+        # print("Weights: {}".format(network_data))
 
         with open("outputs/{}".format(filename), 'w') as f:
             for entry in network_data:
@@ -287,7 +288,7 @@ class BasicAutoencoder:
                 
         log.info("Model state saved to {}".format(filename))
     
-    def load_network_state(filename):
+    def load_network_state(self, filename):
         """
         Carga los pesos y bias de una red neuronal desde un archivo.
         
