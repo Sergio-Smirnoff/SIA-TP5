@@ -269,74 +269,120 @@ class BasicAutoencoder:
         new_char = self.decode_from_latent(new_latent)
         return (new_char > 0.5).astype(float)
     
-    def save_state(self, filename):
-        """Save model state to a file."""
 
-        network_data = [ 
-            {
-                'weights': entry[0],
-                'bias': entry[1]
-            }
-            for entry in zip(self.weights, self.biases)
-        ]
+# =========== DEPRECADO ==========
 
-        # print("Weights: {}".format(network_data))
+    #⛔️solo lo guardo por si hace falta cargar desde txt⛔️
 
-        with open("outputs/{}".format(filename), 'w') as f:
-            for entry in network_data:
-                f.write(f"{entry}\n")
-                
-        log.info("Model state saved to {}".format(filename))
-    
-    def load_network_state(self, filename):
-        """
-        Carga los pesos y bias de una red neuronal desde un archivo.
+
+    # def save_state(self, filename):
+    #     """Save model state to a file."""
         
-        Args:
-            filename (str): Ruta al archivo con los pesos y bias
+    #     network_data = [ 
+    #         {
+    #             'weights': entry[0].tolist(),  # Convertir a lista de Python
+    #             'bias': entry[1].tolist()       # Convertir a lista de Python
+    #         }
+    #         for entry in zip(self.weights, self.biases)
+    #     ]
+        
+    #     with open("outputs/{}".format(filename), 'w') as f:
+    #         import json
+    #         json.dump(network_data, f)
+        
+    #     log.info("Model state saved to {}".format(filename))
+
+    # # def load_network_state(self, filename):
+    # #     """Carga los pesos y bias de una red neuronal desde un archivo."""
+    # #     import json
+        
+    # #     with open(filename, 'r') as f:
+    # #         network_data = json.load(f)
+        
+    # #     weights_list = []
+    # #     biases_list = []
+        
+    # #     for layer in network_data:
+    # #         weights_list.append(np.array(layer['weights']))
+    # #         biases_list.append(np.array(layer['bias']))
+        
+    # #     return weights_list, biases_list
+    
+    # def load_network_state(self, filename):
+    #     """
+    #     Carga los pesos y bias de una red neuronal desde un archivo.
+        
+    #     Args:
+    #         filename (str): Ruta al archivo con los pesos y bias
             
-        Returns:
-            tuple: (weights_list, biases_list) donde cada elemento es un numpy array
-        """
-        weights_list = []
-        biases_list = []
+    #     Returns:
+    #         tuple: (weights_list, biases_list) donde cada elemento es un numpy array
+    #     """
+    #     weights_list = []
+    #     biases_list = []
         
-        with open(filename, 'r') as f:
-            content = f.read()
+    #     with open(filename, 'r') as f:
+    #         content = f.read()
         
-        # Dividir por líneas que contienen diccionarios completos
-        # Usamos un patrón que identifica el inicio de cada diccionario
-        layer_strings = re.split(r'\n(?=\{\'weights\':)', content)
-        layer_strings = [s.strip() for s in layer_strings if s.strip()]
+    #     # Dividir por líneas que contienen diccionarios completos
+    #     # Usamos un patrón que identifica el inicio de cada diccionario
+    #     layer_strings = re.split(r'\n(?=\{\'weights\':)', content)
+    #     layer_strings = [s.strip() for s in layer_strings if s.strip()]
         
-        for layer_str in layer_strings:
-            try:
-                # Evaluar el string como diccionario de Python
-                layer_dict = eval(layer_str)
+    #     for layer_str in layer_strings:
+    #         try:
+    #             # Evaluar el string como diccionario de Python
+    #             layer_dict = eval(layer_str, {"__builtins__": {}, "array": np.array})
                 
-                # Extraer weights y bias
-                weights = layer_dict['weights']
-                bias = layer_dict['bias']
+    #             # Extraer weights y bias
+    #             weights = layer_dict['weights']
+    #             bias = layer_dict['bias']
                 
-                # Convertir a numpy arrays si no lo son ya
-                if not isinstance(weights, np.ndarray):
-                    weights = np.array(weights)
-                if not isinstance(bias, np.ndarray):
-                    bias = np.array(bias)
+    #             # Convertir a numpy arrays si no lo son ya
+    #             if not isinstance(weights, np.ndarray):
+    #                 weights = np.array(weights)
+    #             if not isinstance(bias, np.ndarray):
+    #                 bias = np.array(bias)
                 
-                weights_list.append(weights)
-                biases_list.append(bias)
+    #             weights_list.append(weights)
+    #             biases_list.append(bias)
                 
-            except Exception as e:
-                print(f"Error procesando capa: {e}")
-                continue
+    #         except Exception as e:
+    #             print(f"Error procesando capa: {e}")
+    #             continue
         
-        return weights_list, biases_list
+    #     return weights_list, biases_list
     
-    def initialize_from_file(self, filename):
+    # def initialize_from_file(self, filename):
+    #     """Initialize model weights and biases from a file."""
+    #     weights, biases = self.load_network_state(filename)
+    #     self.weights = weights
+    #     self.biases = biases
+    #     self.n_layers = len(self.weights) + 1
+    #     log.info("Model state loaded from {}".format(filename))
+
+    def save_state_pickle(self, filename):
+        """Save model state to a file."""
+        import pickle
+        
+        network_data = {
+            'weights': self.weights,
+            'biases': self.biases
+        }
+        
+        with open("outputs/{}".format(filename), 'wb') as f:
+            pickle.dump(network_data, f)
+        
+        log.info("Model state saved to {}".format(filename))
+
+    def initialize_from_file_pickle(self, filename):
         """Initialize model weights and biases from a file."""
-        weights, biases = self.load_network_state(filename)
-        self.weights = weights
-        self.biases = biases
+        import pickle
+        
+        with open(filename, 'rb') as f:
+            network_data = pickle.load(f)
+        
+        self.weights = network_data['weights']
+        self.biases = network_data['biases']
         self.n_layers = len(self.weights) + 1
         log.info("Model state loaded from {}".format(filename))
