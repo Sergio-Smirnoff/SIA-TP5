@@ -39,6 +39,13 @@ class BasicAutoencoder:
         self.error_mse_ant = np.inf
         self.error_mse_min = np.inf
 
+        if self.optimizer == 'adam':
+            log.info("Adam optimizer selected")
+            self.beta1 = 0.9
+            self.beta2 = 0.999
+            self.epsilon_adam = 1e-8
+            self.t = 0
+
         if activation_function == 'relu':
             self.activation = relu
             self.activation_derivative = relu_derivative
@@ -77,7 +84,21 @@ class BasicAutoencoder:
             self.weights.append(W)
             self.biases.append(b)
 
+        if self.optimizer == 'adam':
+            # Initialize Adam parameters
+            self.m_w = [np.zeros_like(w) for w in self.weights]
+            self.v_w = [np.zeros_like(w) for w in self.weights]
+            self.m_b = [np.zeros_like(b) for b in self.biases]
+            self.v_b = [np.zeros_like(b) for b in self.biases]
+
         log.info("Weights and biases initialized.")
+
+    def normalize(self, X):
+        # Normalización a [0,1]
+        X_min = X.min(axis=0, keepdims=True)
+        X_max = X.max(axis=0, keepdims=True)
+        return (X - X_min) / (X_max - X_min + 1e-8), X_min, X_max
+
         
     def forward(self, X):
         """
@@ -125,32 +146,24 @@ class BasicAutoencoder:
         dW = [np.zeros_like(w) for w in self.weights]
         db = [np.zeros_like(b) for b in self.biases]
 
+        # BCE + sigmoid simplificación: dZ = A_out - Y
         dZ = activations[-1] - Y
-        dA = 1
 
         for i in reversed(range(len(self.weights))):
 
-            if i == len(self.weights) - 1:
-                # Output layer: already have dZ
-                pass
-            else:
-                # Hidden layers: use derivative of the hidden activation
-                dZ = dA * self.activation_derivative(z_values[i])
-
-            # Compute gradients
             dW[i] = np.dot(activations[i].T, dZ) / m
             db[i] = np.sum(dZ, axis=0, keepdims=True) / m
 
-            # Prepare dA for previous layer
             if i > 0:
-                dA = np.dot(dZ, self.weights[i].T)
+                dA_prev = np.dot(dZ, self.weights[i].T)
+                dZ = dA_prev * self.activation_derivative(z_values[i - 1])
 
-        log.info("Backward propagation completed.")
         return dW, db
 
     def update_parameters(self, dW, db):
         """
         Update weights and biases using gradients
+        Using SGD optimizer
         Args:
             dW: Gradients for weights
             db: Gradients for biases
@@ -160,6 +173,33 @@ class BasicAutoencoder:
             self.weights[i] -= self.learning_rate * dW[i]
             self.biases[i] -= self.learning_rate * db[i]
         log.info("Parameters updated.")
+
+    def update_parameters_adam(self, dW, db):
+
+        self.t += 1  # contador de steps para corrección de sesgo
+
+        for i in range(self.n_layers - 1):
+
+            # --- MOMENTOS DE W ---
+            self.m_w[i] = self.beta1 * self.m_w[i] + (1 - self.beta1) * dW[i]
+            self.v_w[i] = self.beta2 * self.v_w[i] + (1 - self.beta2) * (dW[i] ** 2)
+
+            # Corrección por sesgo
+            m_w_hat = self.m_w[i] / (1 - self.beta1 ** self.t)
+            v_w_hat = self.v_w[i] / (1 - self.beta2 ** self.t)
+
+            # Update final
+            self.weights[i] -= self.learning_rate * m_w_hat / (np.sqrt(v_w_hat) + 1e-8)
+
+            # --- MOMENTOS DE b ---
+            self.m_b[i] = self.beta1 * self.m_b[i] + (1 - self.beta1) * db[i]
+            self.v_b[i] = self.beta2 * self.v_b[i] + (1 - self.beta2) * (db[i] ** 2)
+            # Corrección por sesgo
+            m_b_hat = self.m_b[i] / (1 - self.beta1 ** self.t)
+            v_b_hat = self.v_b[i] / (1 - self.beta2 ** self.t)
+
+            # Update final
+            self.biases[i] -= self.learning_rate * m_b_hat / (np.sqrt(v_b_hat) + 1e-8)
 
     def compute_loss(self, Y_pred, Y_true) -> float:
         """
@@ -176,53 +216,43 @@ class BasicAutoencoder:
         return loss
     
     def train(self, X, Y=None, epochs=1000):
-        """
-        Train the autoencoder
-        Args:
-            X: Input data
-            Y: Target data
-            epochs: Number of training epochs
-        """
+
+        X_norm, X_min, X_max = self.normalize(X)
+
         if Y is None:
-            Y = X  # Autoencoder target is the input itself
+            Y = X_norm
 
         losses = []
-
-        log.info("Starting training for {} epochs...".format(epochs))
         pbar = tqdm(range(epochs), desc="Training", unit="epoch")
 
         for epoch in pbar:
-            activations, z_values = self.forward(X)
+            activations, z_values = self.forward(X_norm)
             loss = self.compute_loss(activations[-1], Y)
-            losses.append(loss)
-
-            dW, db = self.backward(X, Y, activations, z_values)
-            self.update_parameters(dW, db)
-
+            dW, db = self.backward(X_norm, Y, activations, z_values)
+            
+            if self.optimizer == 'adam':
+                self.update_parameters_adam(dW, db)
+            else:
+                self.update_parameters(dW, db)
             pbar.set_postfix(loss=loss)
-
-            if epoch % 100 == 0 or epoch == epochs - 1:
-                log.info("Epoch {}: Loss = {:.6f}".format(epoch, loss))
-
-            if abs(loss) < self.epsilon:
-                log.info("Convergence reached at epoch {}.".format(epoch))
-                break
-
+            losses.append(loss)
+            log.info("Epoch {}/{} - Loss: {:.6f}".format(epoch + 1, epochs, loss))
+            if abs(loss) < self.epsilon: 
+                log.info("Convergence reached at epoch {}.".format(epoch)) 
+                break 
             self.error_entropy_ant = loss
+        self.X_min = X_min
+        self.X_max = X_max
 
         return losses
 
+
     def predict(self, X):
-        """Predict output for given input X."""
-        A = X
-        A = X
-        for i in range(len(self.weights)):
-            z = np.dot(A, self.weights[i]) + self.biases[i]
-            if i < len(self.weights) - 1:
-                A = self.activation(z)
-            else:
-                A = sigmoid(z)
-        return A
+        X_norm = (X - self.X_min) / (self.X_max - self.X_min + 1e-8)
+        activations, _ = self.forward(X_norm)
+        Y_norm = activations[-1]
+        return Y_norm * (self.X_max - self.X_min) + self.X_min
+
     
     def get_latent_representation(self, X):
         """Find the representation of X in the latent space."""
