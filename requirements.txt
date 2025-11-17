@@ -2,4 +2,3 @@ seaborn
 numpy
 matplotlib
 tqdm
-re

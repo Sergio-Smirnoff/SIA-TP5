@@ -13,7 +13,7 @@ class BasicAutoencoder:
             self,
             # ej: [input_size, l1_hidden_size, l2_hidden_size] 
             # l1 == l2, input_size == output_size, l2 == 2 as middle layer always 2
-            architecture=[35, 16, 8, 2], 
+            architecture=[35, 16, 8, 4, 2], 
             learning_rate=0.01,
             epsilon=1e-4,
             optimizer='sgd',
@@ -121,29 +121,30 @@ class BasicAutoencoder:
         """
         log.info("Performing backward propagation...")
         m = X.shape[0]
-        
+
         dW = [np.zeros_like(w) for w in self.weights]
         db = [np.zeros_like(b) for b in self.biases]
-        
-        # Error at output layer
-        dA = activations[-1] - Y
-        
-        # Backpropagation
+
+        dZ = activations[-1] - Y
+        dA = 1
+
         for i in reversed(range(len(self.weights))):
+
             if i == len(self.weights) - 1:
-                dz = dA * sigmoid_derivative(z_values[i])
+                # Output layer: already have dZ
+                pass
             else:
-                dz = dA * self.activation_derivative(z_values[i])
+                # Hidden layers: use derivative of the hidden activation
+                dZ = dA * self.activation_derivative(z_values[i])
 
+            # Compute gradients
+            dW[i] = np.dot(activations[i].T, dZ) / m
+            db[i] = np.sum(dZ, axis=0, keepdims=True) / m
 
-            log.debug("Layer {}: dz shape: {}".format(i+1, dz.shape))
-            log.debug("Layer {}: T shape: {}".format(i+1, activations[i].T.shape))
-
-            dW[i] = np.dot(activations[i].T, dz) / m
-            db[i] = np.sum(dz, axis=0, keepdims=True) / m
-            
+            # Prepare dA for previous layer
             if i > 0:
-                dA = np.dot(dz, self.weights[i].T)
+                dA = np.dot(dZ, self.weights[i].T)
+
         log.info("Backward propagation completed.")
         return dW, db
 
@@ -187,23 +188,29 @@ class BasicAutoencoder:
 
         losses = []
 
-
         log.info("Starting training for {} epochs...".format(epochs))
-        # for epoch in tqdm(range(epochs)):
-        for epoch in range(epochs):
+        pbar = tqdm(range(epochs), desc="Training", unit="epoch")
+
+        for epoch in pbar:
             activations, z_values = self.forward(X)
             loss = self.compute_loss(activations[-1], Y)
             losses.append(loss)
+
             dW, db = self.backward(X, Y, activations, z_values)
             self.update_parameters(dW, db)
 
+            pbar.set_postfix(loss=loss)
+
             if epoch % 100 == 0 or epoch == epochs - 1:
                 log.info("Epoch {}: Loss = {:.6f}".format(epoch, loss))
-            if abs(self.error_entropy_ant - loss) < self.epsilon:
+
+            if abs(loss) < self.epsilon:
                 log.info("Convergence reached at epoch {}.".format(epoch))
                 break
-        
-        log.info("Training completed.")
+
+            self.error_entropy_ant = loss
+
+        return losses
 
     def predict(self, X):
         """Predict output for given input X."""

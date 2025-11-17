@@ -4,6 +4,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import tqdm
+import os
 from error_utils import compare_pixel_error, plot_error, read_errors_from_file
 from autoenconder import BasicAutoencoder
 import logging as log
@@ -11,7 +12,7 @@ from read_utils import plot_character, get_font3, to_binary_array
 
 INPUT_SIZE = 5 * 7
 LATENT_SIZE = 2
-EPOCHS = 200000
+EPOCHS = 50000
 TEST_TRIES = 100
 
 log.basicConfig(level=log.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -23,11 +24,11 @@ def compare_arrays(arr1, arr2) -> bool:
 def main():
 
     encoder = BasicAutoencoder(
-        [35, 16, 8, 2],
-        learning_rate=0.01,
+        [35, 16, 8, 4, 2],
+        learning_rate=0.1,
         epsilon=1e-4,
         optimizer='sgd',
-        activation_function='sigmoid',
+        activation_function='tanh',
         seed=42
     )
 
@@ -78,7 +79,55 @@ def main():
     # encoder.save_state("autoencoder_state_{}.txt".format(time.strftime("%H%M%S.%d.%m.%Y")))
     encoder.save_state_pickle("autoencoder_state_{}.pkl".format(time.strftime("%H%M%S.%d.%m.%Y")))
 
+def main2():
 
+    encoder = BasicAutoencoder(
+        [35, 16, 8, 4, 2],
+        learning_rate=0.001,
+        epsilon=1e-4,
+        optimizer='sgd',
+        activation_function='tanh',
+        seed=42
+    )
+
+    #train
+    characters = get_font3()
+    # binary_characters = [to_binary_array(character) for character in characters]
+    binary_characters = np.array([
+        to_binary_array(character).flatten() 
+        for character in characters
+    ])
+
+
+        
+    # print("Initializing from file...")
+    # encoder.initialize_from_file_pickle("outputs/autoencoder_state_103939.17.11.2025.pkl")
+
+    error_by_epoch = []
+
+    encoder.train(binary_characters, epochs=EPOCHS)
+
+    # with open("outputs/errors.txt", "w") as f:
+    #     for epoch_errors in error_by_epoch:
+    #         f.write(",".join(map(str, epoch_errors)) + "\n")
+
+    # errors_by_epoch = read_errors_from_file("outputs/errors.txt")
+    # plot_error(errors_by_epoch, output_path="outputs/error_over_epochs.png")
+
+    # Read errors from file
+    
+    os.makedirs("outputs", exist_ok=True)
+    # Test
+    for idx, character in enumerate(binary_characters):
+        result = []
+        output = encoder.predict(character.reshape(1, -1))
+        output_reshaped = output.reshape(7, 5)
+
+        plot_character(output_reshaped, output_path="outputs/character_{}.png".format(idx + 1))
+
+    print("saving model state...")
+    # encoder.save_state("autoencoder_state_{}.txt".format(time.strftime("%H%M%S.%d.%m.%Y")))
+    encoder.save_state_pickle("autoencoder_state_{}.pkl".format(time.strftime("%H%M%S.%d.%m.%Y")))
 
 if __name__ == "__main__":
-    main()
+    main2()
