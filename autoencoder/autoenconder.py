@@ -14,9 +14,12 @@ class BasicAutoencoder:
             # ej: [input_size, l1_hidden_size, l2_hidden_size] 
             # l1 == l2, input_size == output_size, l2 == 2 as middle layer always 2
             architecture=[35, 16, 8, 4, 2], 
-            learning_rate=0.01,
+            learning_rate=0.001,
             epsilon=1e-4,
             optimizer='sgd',
+            adam_b1 = 0.9,
+            adam_b2 = 0.999,
+            adam_epsilon = 1e-8,
             activation_function='sigmoid',
             seed=42
             ):
@@ -52,6 +55,11 @@ class BasicAutoencoder:
         # Matrix of weights and biases
         self.wb_initializer(architecture, seed)
 
+        if self.optimizer == 'adam':
+            self.initialize_adam(adam_b1, adam_b2, adam_epsilon)
+
+        
+
         log.info("Autoencoder initialized with architecture: {}".format(architecture))
 
 
@@ -79,6 +87,21 @@ class BasicAutoencoder:
 
         log.info("Weights and biases initialized.")
         
+
+    def initialize_adam(self, beta1, beta2, adam_epsilon):
+        """Initialize Adam optimizer momentum and velocity terms."""
+        log.info("Initializing Adam optimizer variables...")
+        self.m_weights = [np.zeros_like(w) for w in self.weights]
+        self.v_weights = [np.zeros_like(w) for w in self.weights]
+        self.m_biases = [np.zeros_like(b) for b in self.biases]
+        self.v_biases = [np.zeros_like(b) for b in self.biases]
+        self.t = 0  # Time step for Adam
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.adam_epsilon = adam_epsilon
+
+        log.info("Adam optimizer initialized.")
+
     def forward(self, X):
         """
         Args:
@@ -92,6 +115,7 @@ class BasicAutoencoder:
         z_values = []
         
         A = X
+        #TODO check X state after each pass
         for i in range(self.n_layers - 1):
             log.debug("Layer {}: Input shape A: {}".format(i+1, np.array(A).shape))
             log.debug("Layer {}: Weights shape: {}, Biases shape: {}".format(i+1, self.weights[i].shape, self.biases[i].shape))
@@ -147,8 +171,24 @@ class BasicAutoencoder:
 
         log.info("Backward propagation completed.")
         return dW, db
-
+    
     def update_parameters(self, dW, db):
+        """
+        Update weights and biases using gradients with selected optimizer
+        Args:
+            dW: Gradients for weights
+            db: Gradients for biases
+        """
+        log.info("Updating parameters with {} optimizer...".format(self.optimizer))
+        
+        if self.optimizer == 'sgd':
+            self.update_sgd(dW, db)
+        elif self.optimizer == 'adam':
+            self.update_adam(dW, db)
+        else:
+            raise ValueError("Unknown optimizer: {}".format(self.optimizer))
+
+    def update_sgd(self, dW, db):
         """
         Update weights and biases using gradients
         Args:
@@ -160,6 +200,32 @@ class BasicAutoencoder:
             self.weights[i] -= self.learning_rate * dW[i]
             self.biases[i] -= self.learning_rate * db[i]
         log.info("Parameters updated.")
+
+    def update_adam(self, dW, db):
+        """Adam optimizer update."""
+        self.t += 1
+        
+        for i in range(len(self.weights)):
+            # Update biased first moment estimate (momentum)
+            self.m_weights[i] = self.beta1 * self.m_weights[i] + (1 - self.beta1) * dW[i]
+            self.m_biases[i] = self.beta1 * self.m_biases[i] + (1 - self.beta1) * db[i]
+            
+            # Update biased second raw moment estimate (velocity)
+            self.v_weights[i] = self.beta2 * self.v_weights[i] + (1 - self.beta2) * (dW[i] ** 2)
+            self.v_biases[i] = self.beta2 * self.v_biases[i] + (1 - self.beta2) * (db[i] ** 2)
+            
+            # Compute bias-corrected first moment estimate
+            m_weights_corrected = self.m_weights[i] / (1 - self.beta1 ** self.t)
+            m_biases_corrected = self.m_biases[i] / (1 - self.beta1 ** self.t)
+            
+            # Compute bias-corrected second raw moment estimate
+            v_weights_corrected = self.v_weights[i] / (1 - self.beta2 ** self.t)
+            v_biases_corrected = self.v_biases[i] / (1 - self.beta2 ** self.t)
+            
+            # Update parameters
+            self.weights[i] -= self.learning_rate * m_weights_corrected / (np.sqrt(v_weights_corrected) + self.adam_epsilon)
+            self.biases[i] -= self.learning_rate * m_biases_corrected / (np.sqrt(v_biases_corrected) + self.adam_epsilon)
+
 
     def compute_loss(self, Y_pred, Y_true) -> float:
         """
@@ -192,10 +258,10 @@ class BasicAutoencoder:
         pbar = tqdm(range(epochs), desc="Training", unit="epoch")
 
         for epoch in pbar:
+
             activations, z_values = self.forward(X)
             loss = self.compute_loss(activations[-1], Y)
             losses.append(loss)
-
             dW, db = self.backward(X, Y, activations, z_values)
             self.update_parameters(dW, db)
 
@@ -208,7 +274,7 @@ class BasicAutoencoder:
                 log.info("Convergence reached at epoch {}.".format(epoch))
                 break
 
-            self.error_entropy_ant = loss
+            # self.error_entropy_ant = loss
 
         return losses
 
