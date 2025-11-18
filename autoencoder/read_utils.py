@@ -79,14 +79,23 @@ def plot_character(character: np.ndarray,  output_path: str):
             character (np.ndarray): 7x5 binary array representing the character.
             output_path (str): Path to save the plotted character image.
     """
+    plt.figure(figsize=(6,8))
     heatmap(
         character, 
+        annot=True,
+        fmt='.2f',
         linewidths=0.2, 
-        cbar=False, 
+        cbar=True,                    # Mostrar barra de colores
+        vmin=0,                       # Valor mínimo fijo en 0
+        vmax=1,                       # Valor máximo fijo en 1
         square=True,
-        cmap=plt.get_cmap('binary'), 
-        linecolor='k')
+        cmap=plt.get_cmap('binary'),  # Blanco (0) a Negro (1)
+        linecolor='k',
+        annot_kws={'size': 6}
+    )
+    plt.tight_layout()
     plt.savefig(output_path)
+    plt.close()
 
 
 

@@ -1,5 +1,6 @@
 
 
+import datetime
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -80,17 +81,24 @@ def compare_arrays(arr1, arr2) -> bool:
 #     # encoder.save_state("autoencoder_state_{}.txt".format(time.strftime("%H%M%S.%d.%m.%Y")))
 #     encoder.save_state_pickle("autoencoder_state_{}.pkl".format(time.strftime("%H%M%S.%d.%m.%Y")))
 
+def save_error_to_file(arq, errors, file_path):
+    with open(file_path, "a") as f:
+        for epoch_error in errors:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            line = f"{arq};{timestamp};{epoch_error}\n"
+            f.write(line)
+
 def main2():
 
     encoder = BasicAutoencoder(
-        ##[35,25,18,12,8,4,2],
+        [35,25,18,12,8,4,2],
         ##[35,20,10,2],
-        [35, 16, 8, 4, 2],
+        ##[35, 16, 8, 4, 2],
         ## probar con threadhold ( 0.5 )
         ## Probar con 3 / 4 en la capa intermedia
 
-        learning_rate=0.0001,
-        epsilon=1e-3,
+        learning_rate=0.001,
+        epsilon=1e-4,
         optimizer='adam',
         activation_function='tanh',
         seed=42
@@ -113,6 +121,8 @@ def main2():
     error_by_epoch = []
 
     errors = encoder.train(binary_characters, epochs=EPOCHS)
+
+    save_error_to_file("GoodArq", errors, "outputs/errors.txt")
 
     plt.plot(errors)
     plt.xlabel("Epochs")
