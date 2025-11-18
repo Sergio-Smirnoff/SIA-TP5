@@ -83,9 +83,12 @@ def compare_arrays(arr1, arr2) -> bool:
 def main2():
 
     encoder = BasicAutoencoder(
-        [35,25,18,12,8,4,2],
+        ##[35,25,18,12,8,4,2],
         ##[35,20,10,2],
-        ##[35, 16, 8, 4, 2],
+        [35, 16, 8, 4, 2],
+        ## probar con threadhold ( 0.5 )
+        ## Probar con 3 / 4 en la capa intermedia
+
         learning_rate=0.0001,
         epsilon=1e-3,
         optimizer='adam',
@@ -95,7 +98,7 @@ def main2():
 
     #train
     characters = get_font3()
-    #characters = characters[9:10]  
+    #characters = [characters[-1]]  
     # binary_characters = [to_binary_array(character) for character in characters]
     binary_characters = np.array([
         to_binary_array(character).flatten() 

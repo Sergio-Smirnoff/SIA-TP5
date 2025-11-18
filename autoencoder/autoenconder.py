@@ -211,6 +211,7 @@ class BasicAutoencoder:
             loss: Computed loss value
         """
         log.info("Computing loss...")
+        ## threadhold
         loss = -np.mean(Y_true * np.log(Y_pred + 1e-8) + (1 - Y_true) * np.log(1 - Y_pred + 1e-8)) 
         # TODO: verificar si poder usar el error 1e-8 o usar el epsilon normal
         return loss
