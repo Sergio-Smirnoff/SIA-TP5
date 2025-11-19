@@ -82,13 +82,81 @@ def compare_arrays(arr1, arr2) -> bool:
 #     encoder.save_state_pickle("autoencoder_state_{}.pkl".format(time.strftime("%H%M%S.%d.%m.%Y")))
 
 def save_error_to_file(arq, errors, file_path):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    errors_str = ",".join(map(str, errors))
     with open(file_path, "a") as f:
-        for epoch_error in errors:
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            line = f"{arq};{timestamp};{epoch_error}\n"
-            f.write(line)
+        line = f"{arq};{timestamp};{errors_str}\n"
+        f.write(line)
+
+
+def plot_latent_space(encoder, X, labels=None, output_path='latent_space.png'):
+    """Plot latent space representations in 2D."""
+    latent = encoder.get_latent_representation(X)
+    
+    if latent.shape[1] != 2:
+        raise ValueError(f"Latent space must be 2D, got {latent.shape[1]} dimensions")
+    
+    plt.figure(figsize=(12, 10))
+    
+    if labels is not None:
+
+        unique_labels = np.unique(labels)
+        colors = plt.cm.tab20(np.linspace(0, 1, len(unique_labels)))
+        
+        for idx, label in enumerate(unique_labels):
+            mask = (labels == label)
+            
+            if np.sum(mask) > 0:
+                plt.scatter(latent[mask, 0], latent[mask, 1], 
+                           label=f'{label}' if label != '\x7f' else 'DEL', 
+                           alpha=0.7, 
+                           s=150,
+                           c=[colors[idx]],
+                           edgecolors='k',
+                           linewidth=0.5)
+                
+        for i, label in enumerate(labels):
+            display_text = 'DEL' if label == '\x7f' else label
+            plt.annotate(display_text, 
+                        (latent[i, 0], latent[i, 1]),
+                        textcoords="offset points",
+                        xytext=(0, 8),
+                        ha='center',
+                        fontsize=9,
+                        weight='bold',
+                        bbox=dict(boxstyle='round,pad=0.3', 
+                                 facecolor='white', 
+                                 edgecolor='gray', 
+                                 alpha=0.7))
+        
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', 
+                  ncol=2, fontsize=8)
+        
+    else:
+        print("No labels - plotting all points")
+        plt.scatter(latent[:, 0], latent[:, 1], alpha=0.7, s=100, c='blue')
+
+    x_range = latent[:, 0].max() - latent[:, 0].min()
+    y_range = latent[:, 1].max() - latent[:, 1].min()
+    x_margin = max(x_range * 0.15, 0.1)
+    y_margin = max(y_range * 0.15, 0.1)
+    
+    plt.xlim(latent[:, 0].min() - x_margin, latent[:, 0].max() + x_margin)
+    plt.ylim(latent[:, 1].min() - y_margin, latent[:, 1].max() + y_margin)
+    plt.xlabel('Latent Dimension 1')
+    plt.ylabel('Latent Dimension 2')
+    plt.title('Latent Space Representation')
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    print(f"Saving to: {output_path}")
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print("Plot saved successfully")
 
 def main2():
+
+    ## Hiperparametros claves: [35,25,18,12,8,4,3], learning_rate=0.001, epsilon=1e-4, optimizer='adam', activation_function='tanh', seed=42
 
     encoder = BasicAutoencoder(
         [35,25,18,12,8,4,2],
@@ -131,14 +199,14 @@ def main2():
     plt.savefig("outputs/error_over_epochs.png")
     plt.close()
 
-    # with open("outputs/errors.txt", "w") as f:
-    #     for epoch_errors in error_by_epoch:
-    #         f.write(",".join(map(str, epoch_errors)) + "\n")
+    with open("outputs/errors.txt", "w") as f:
+        for epoch_errors in error_by_epoch:
+            f.write(",".join(map(str, epoch_errors)) + "\n")
 
-    # errors_by_epoch = read_errors_from_file("outputs/errors.txt")
-    # plot_error(errors_by_epoch, output_path="outputs/error_over_epochs.png")
+    errors_by_epoch = read_errors_from_file("outputs/errors.txt")
+    plot_error(errors_by_epoch, output_path="outputs/error_over_epochs.png")
 
-    # Read errors from file
+    #Read errors from file
     
     os.makedirs("outputs", exist_ok=True)
     # Test
@@ -149,6 +217,10 @@ def main2():
 
         plot_character(output_reshaped, output_path="outputs/character_{}.png".format(idx + 1))
 
+    labels_chars = np.array([chr(i) for i in range(0x60, 0x80)])  # Crear como numpy array
+
+    plot_latent_space(encoder, binary_characters, labels=labels_chars, 
+                    output_path="outputs/latent_space.png")
     print("saving model state...")
     # encoder.save_state("autoencoder_state_{}.txt".format(time.strftime("%H%M%S.%d.%m.%Y")))
     encoder.save_state_pickle("autoencoder_state_{}.pkl".format(time.strftime("%H%M%S.%d.%m.%Y")))

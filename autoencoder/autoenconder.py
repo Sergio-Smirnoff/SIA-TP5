@@ -223,6 +223,7 @@ class BasicAutoencoder:
     def train(self, X, Y=None, epochs=1000):
 
         X_norm, X_min, X_max = self.normalize(X)
+        X_norm = X
 
         if Y is None:
             Y = X_norm
@@ -253,8 +254,8 @@ class BasicAutoencoder:
 
 
     def predict(self, X):
-        X_norm = (X - self.X_min) / (self.X_max - self.X_min + 1e-8)
-        activations, _ = self.forward(X_norm)
+        #X_norm = (X - self.X_min) / (self.X_max - self.X_min + 1e-8)
+        activations, _ = self.forward(X)
         Y_norm = activations[-1]
         return Y_norm * (self.X_max - self.X_min) + self.X_min
 
@@ -262,11 +263,9 @@ class BasicAutoencoder:
     def get_latent_representation(self, X):
         """Find the representation of X in the latent space."""
         A = X
-        latent_layer_idx = len(self.weights) // 2
-        
-        for i in range(latent_layer_idx):
+        for i in range(len(self.weights) // 2):
             z = np.dot(A, self.weights[i]) + self.biases[i]
-            A = self.activation(z)
+            A = self.activation(z)  
         
         return A
     
