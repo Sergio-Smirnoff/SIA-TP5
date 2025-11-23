@@ -1,6 +1,7 @@
 from autoenconder import BasicAutoencoder
 import numpy as np
 from activation_functions import sigmoid, sigmoid_derivative, relu, relu_derivative, tanh, tanh_derivative
+
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -59,7 +60,7 @@ class VAE(BasicAutoencoder):
         # ---------- inicializar μ y logvar ----------
         # Una sola matriz que proyecta de encoder_arch[-1] a latent_dim
         n_in = self.encoder_arch[-1]  # Última capa del encoder (8)
-        n_out = self.latent_dim        # Dimensión latente (2)
+        n_out = self.latent_dim        # Dimensión latente (2 --> 4 neuronas)
         limit = np.sqrt(6 / (n_in + n_out))
         
         self.W_mu = np.random.uniform(-limit, limit, (n_in, n_out))
@@ -124,6 +125,7 @@ class VAE(BasicAutoencoder):
         # ------- Latent layer -------
         # A tiene forma (batch_size, encoder_arch[-1])
         # mu y logvar tendrán forma (batch_size, latent_dim)
+
         self.mu = np.dot(A, self.W_mu) + self.b_mu
         self.logvar = np.dot(A, self.W_logvar) + self.b_logvar
         self.std = np.exp(0.5 * self.logvar)
@@ -131,6 +133,9 @@ class VAE(BasicAutoencoder):
         # eps tiene la misma forma que mu: (batch_size, latent_dim)
         eps = np.random.randn(*self.mu.shape)
         self.z = self.mu + self.std * eps   # reparam trick
+
+        print('MU-SIGMA-EPSILON-Z')
+        print(f'{self.mu} - {self.std} - {eps} - {self.z}')
 
         # ------- Decoder forward -------
         activations_dec = [self.z]
@@ -234,6 +239,27 @@ class VAE(BasicAutoencoder):
 
         return dW_enc, db_enc, dW_mu, db_mu, dW_logvar, db_logvar, dW_dec, db_dec
 
+    def update_parameters_sgd(self, dW_enc, db_enc, dW_mu, db_mu,
+                               dW_logvar, db_logvar, dW_dec, db_dec):
+        
+        print(f'Inside update sgd')
+        for i in range(len(self.encoder_weights)):
+            self.encoder_weights[i] -= dW_enc[i] * self.learning_rate
+            self.encoder_biases[i] -= db_enc[i] * self.learning_rate
+        
+
+        self.W_mu -= dW_mu * self.learning_rate
+        self.b_mu -= db_mu * self.learning_rate
+        
+        self.W_logvar -= dW_logvar * self.learning_rate
+        self.b_logvar -= db_logvar * self.learning_rate
+
+        for i in range(len(self.decoder_weights)):
+            self.decoder_weights[i] -= dW_dec[i] * self.learning_rate
+            self.decoder_biases[i] -= db_dec[i] * self.learning_rate
+        # print(f'Values after: \nW_mu: {self.W_mu} \nb_mu: {self.b_mu} \nW_logvar: {self.W_logvar} \nb_logvar: {self.b_logvar }')
+
+
     def update_parameters_adam(self,
                                dW_enc, db_enc,
                                dW_mu, db_mu,
@@ -325,6 +351,14 @@ class VAE(BasicAutoencoder):
 
             self.decoder_biases[i] -= self.learning_rate * m_hat / (np.sqrt(v_hat) + eps)
 
+    def update(self, dW_enc, db_enc, dW_mu, db_mu,
+                               dW_logvar, db_logvar, dW_dec, db_dec):
+        if self.optimizer =='sgd':
+            self.update_parameters_sgd(dW_enc, db_enc, dW_mu, db_mu,
+                               dW_logvar, db_logvar, dW_dec, db_dec)
+        else:
+            self.update_parameters_adam(dW_enc, db_enc, dW_mu, db_mu,
+                               dW_logvar, db_logvar, dW_dec, db_dec)
 
     def train(self, X, Y=None, epochs=1000):
 
@@ -341,56 +375,109 @@ class VAE(BasicAutoencoder):
 
             loss = loss_recon + kl_loss
 
+            print(f'recon_loss={loss_recon} + KL={kl_loss} = {loss}')
+
             rango.set_postfix(loss=loss)
 
             # Backward
             grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec)
-            self.update_parameters_adam(*grads)
-
+            
+            self.update(*grads)
+            # self.save_gradients_and_weights_to_csv(*grads, epoch)
+            # print(f'dW_mu={grads[2]}\n db_mu={grads[3]}\n dW_logvar={grads[4]}\n db_logvar={grads[5]}')
             if epoch % (epochs/10) == 0:
-                print(f"Epoch {epoch}: Loss={loss:.4f} Recon={loss_recon:.4f} KL={kl_loss:.4f}")
+                # print(f"Epoch {epoch}: Loss={loss:.4f} Recon={loss_recon:.4f} KL={kl_loss:.4f}")
                 self.plot_latent_pweaseeeeee(X, epoch)
                 
 
-    def plot_latent_pweaseeeeee(self, X, epoch):
-        latent_points = []
-        for emoji in X:
-            mu, logvar, z = self.encode(emoji)
-            print()
-            latent_points.append(z[0])
-        latent_points = np.array(latent_points)  # Forma (10, 4)
-        latent_2d = latent_points[:, :2]  # Forma (10, 2)
-        plot_latent_space(latent_2d, 
-            X,
-            labels=range(len(X)),
-            output_path=f"bmp_images/bit_output/latent_space_{epoch}.png")
+    def plot_latent_pweaseeeeee(self, X, epoch, n_samples=50, labels=None):
+        """
+        Plotea el espacio latente mostrando la distribución estocástica
         
-    def encode(self, X):
-        """Codifica X y retorna mu, logvar y z"""
-        # Asegurar que X sea 2D
+        Args:
+            X: Dataset de entrada
+            epoch: Número de época actual
+            n_samples: Número de muestras a tomar de cada input para visualizar la distribución
+            labels: Etiquetas para cada input (opcional)
+        """
+        if labels is None:
+            labels = range(len(X))
+        
+        all_samples = []
+        sample_labels = []
+        mu_points = []
+        
+        for idx, x_input in enumerate(X):
+            # Obtener mu, logvar y muestras
+            mu, logvar, z_samples = self.encode(x_input, n_samples=n_samples)
+            
+            # Guardar mu para plotear el centro
+            mu_points.append(mu[0])
+            
+            # Guardar todas las muestras con su etiqueta
+            for z in z_samples:
+                all_samples.append(z[0])
+                sample_labels.append(labels[idx])
+        
+        all_samples = np.array(all_samples)  # Forma (n_inputs * n_samples, latent_dim)
+        mu_points = np.array(mu_points)  # Forma (n_inputs, latent_dim)
+        
+        # Tomar solo las primeras 2 dimensiones si latent_dim > 2
+        if all_samples.shape[1] >= 2:
+            samples_2d = all_samples[:, :2]
+            mu_2d = mu_points[:, :2]
+            
+            plot_latent_space_with_distributions(
+                samples_2d, 
+                mu_2d,
+                sample_labels,
+                labels,
+                n_samples=n_samples,
+                output_path=f"bmp_images/bit_output/latent_space_{epoch}.png"
+            )
+        else:
+            print(f"Warning: Latent dimension is {all_samples.shape[1]}, need at least 2 for 2D plot")
+        
+    def encode(self, X, n_samples=1):
+        """
+        Codifica X y retorna mu, logvar y opcionalmente muestras de z
+        
+        Args:
+            X: Input data
+            n_samples: Número de muestras a generar del espacio latente
+        
+        Returns:
+            mu: Media de la distribución latente
+            logvar: Log-varianza de la distribución latente
+            z_samples: Lista de n_samples muestras del espacio latente (si n_samples > 0)
+        """
         if X.ndim == 1:
             X = X.reshape(1, -1)
         
-        activations_enc = [X]
         A = X
-        
-        # Forward pass por el encoder
         for i in range(len(self.encoder_weights)):
             Z = np.dot(A, self.encoder_weights[i]) + self.encoder_biases[i]
             A = self.activation(Z)
-            activations_enc.append(A)
         
-        # Calcular mu, logvar y z
         mu = np.dot(A, self.W_mu) + self.b_mu
         logvar = np.dot(A, self.W_logvar) + self.b_logvar
-        std = np.exp(0.5 * logvar)
-        eps = np.random.randn(*mu.shape)
-        z = mu + std * eps
         
-        return mu, logvar, z
-    
+        if n_samples > 0:
+            std = np.exp(0.5 * logvar)
+            z_samples = []
+            for _ in range(n_samples):
+                eps = np.random.randn(*mu.shape)
+                z = mu + std * eps
+                z_samples.append(z)
+            return mu, logvar, z_samples
+        else:
+            return mu, logvar, None
+
     def decode(self, z):
         """Decodifica desde el espacio latente z"""
+        # if z.ndim == 1:
+        #     z = z.reshape(1, -1)
+        
         A = z
         for i in range(len(self.decoder_weights)):
             Z = np.dot(A, self.decoder_weights[i]) + self.decoder_biases[i]
@@ -531,6 +618,91 @@ class VAE(BasicAutoencoder):
         
         print(f"VAE model state loaded from {filename}")
 
+    def save_gradients_and_weights_to_csv(self, dW_enc, db_enc, dW_mu, db_mu,
+                                       dW_logvar, db_logvar, dW_dec, db_dec,
+                                       epoch, filename_prefix='training_data'):
+        """
+        Guarda los gradientes y pesos de cada capa en archivos CSV.
+        """
+        import pandas as pd
+        from pathlib import Path
+        
+        # Crear directorio si no existe
+        Path("outputs/gradients").mkdir(parents=True, exist_ok=True)
+        
+        # ==================== ENCODER ====================
+        for i in range(len(self.encoder_weights)):
+            data = {
+                'epoch': [epoch] * (self.encoder_weights[i].size + self.encoder_biases[i].size),
+                'layer': [f'encoder_{i}'] * (self.encoder_weights[i].size + self.encoder_biases[i].size),
+                'parameter_type': ['weight'] * self.encoder_weights[i].size + ['bias'] * self.encoder_biases[i].size,
+                'gradient': np.concatenate([dW_enc[i].flatten(), db_enc[i].flatten()]),
+                'value': np.concatenate([self.encoder_weights[i].flatten(), self.encoder_biases[i].flatten()])
+            }
+            
+            df = pd.DataFrame(data)
+            filepath = f"outputs/gradients/{filename_prefix}_encoder_layer_{i}.csv"
+            
+            # Append si el archivo existe, sino crear nuevo
+            if Path(filepath).exists():
+                df.to_csv(filepath, mode='a', header=False, index=False)
+            else:
+                df.to_csv(filepath, index=False)
+        
+        # ==================== MU ====================
+        data_mu = {
+            'epoch': [epoch] * (self.W_mu.size + self.b_mu.size),
+            'layer': ['mu'] * (self.W_mu.size + self.b_mu.size),
+            'parameter_type': ['weight'] * self.W_mu.size + ['bias'] * self.b_mu.size,
+            'gradient': np.concatenate([dW_mu.flatten(), db_mu.flatten()]),
+            'value': np.concatenate([self.W_mu.flatten(), self.b_mu.flatten()])
+        }
+        
+        df_mu = pd.DataFrame(data_mu)
+        filepath_mu = f"outputs/gradients/{filename_prefix}_mu.csv"
+        
+        if Path(filepath_mu).exists():
+            df_mu.to_csv(filepath_mu, mode='a', header=False, index=False)
+        else:
+            df_mu.to_csv(filepath_mu, index=False)
+        
+        # ==================== LOGVAR ====================
+        data_logvar = {
+            'epoch': [epoch] * (self.W_logvar.size + self.b_logvar.size),
+            'layer': ['logvar'] * (self.W_logvar.size + self.b_logvar.size),
+            'parameter_type': ['weight'] * self.W_logvar.size + ['bias'] * self.b_logvar.size,
+            'gradient': np.concatenate([dW_logvar.flatten(), db_logvar.flatten()]),
+            'value': np.concatenate([self.W_logvar.flatten(), self.b_logvar.flatten()])
+        }
+        
+        df_logvar = pd.DataFrame(data_logvar)
+        filepath_logvar = f"outputs/gradients/{filename_prefix}_logvar.csv"
+        
+        if Path(filepath_logvar).exists():
+            df_logvar.to_csv(filepath_logvar, mode='a', header=False, index=False)
+        else:
+            df_logvar.to_csv(filepath_logvar, index=False)
+        
+        # ==================== DECODER ====================
+        for i in range(len(self.decoder_weights)):
+            data = {
+                'epoch': [epoch] * (self.decoder_weights[i].size + self.decoder_biases[i].size),
+                'layer': [f'decoder_{i}'] * (self.decoder_weights[i].size + self.decoder_biases[i].size),
+                'parameter_type': ['weight'] * self.decoder_weights[i].size + ['bias'] * self.decoder_biases[i].size,
+                'gradient': np.concatenate([dW_dec[i].flatten(), db_dec[i].flatten()]),
+                'value': np.concatenate([self.decoder_weights[i].flatten(), self.decoder_biases[i].flatten()])
+            }
+            
+            df = pd.DataFrame(data)
+            filepath = f"outputs/gradients/{filename_prefix}_decoder_layer_{i}.csv"
+            
+            if Path(filepath).exists():
+                df.to_csv(filepath, mode='a', header=False, index=False)
+            else:
+                df.to_csv(filepath, index=False)
+        
+        print(f"Gradientes y pesos guardados para época {epoch}")
+
 
 
 def plot_latent_space(latent, X, labels=None, output_path='latent_space.png'):
@@ -596,3 +768,98 @@ def plot_latent_space(latent, X, labels=None, output_path='latent_space.png'):
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
     print("Plot saved successfully")
+
+def plot_latent_space_with_distributions(samples, mu_points, sample_labels, unique_labels, 
+                                         n_samples=50, output_path='latent_space.png'):
+    """
+    Plot latent space mostrando las distribuciones estocásticas de cada input
+    
+    Args:
+        samples: Array de todas las muestras (n_inputs * n_samples, 2)
+        mu_points: Array de los puntos mu (n_inputs, 2)
+        sample_labels: Lista con las etiquetas de cada muestra
+        unique_labels: Lista de etiquetas únicas
+        n_samples: Número de muestras por input
+        output_path: Ruta donde guardar el plot
+    """
+    
+    plt.figure(figsize=(14, 12))
+    
+    # Obtener colores únicos
+    unique_labels_array = np.array(unique_labels)
+    colors = plt.cm.tab20(np.linspace(0, 1, len(unique_labels_array)))
+    
+    # Plotear las muestras (distribuciones)
+    for idx, label in enumerate(unique_labels_array):
+        # Filtrar muestras de este input
+        mask = np.array(sample_labels) == label
+        
+        if np.sum(mask) > 0:
+            # Plotear la nube de puntos (distribución)
+            plt.scatter(samples[mask, 0], samples[mask, 1],
+                       alpha=0.15,  # Transparencia alta para ver densidad
+                       s=30,
+                       c=[colors[idx]],
+                       edgecolors='none',
+                       label=None)  # No agregar a leyenda
+    
+    # Plotear los puntos mu (centros) encima
+    for idx, label in enumerate(unique_labels_array):
+        plt.scatter(mu_points[idx, 0], mu_points[idx, 1],
+                   label=f'{label}' if label != '\x7f' else 'DEL',
+                   alpha=1.0,
+                   s=200,
+                   c=[colors[idx]],
+                   edgecolors='black',
+                   linewidth=2,
+                   marker='*',  # Estrella para destacar
+                   zorder=100)  # Plotear encima de todo
+        
+        # Anotar con la etiqueta
+        display_text = 'DEL' if label == '\x7f' else str(label)
+        plt.annotate(display_text,
+                    (mu_points[idx, 0], mu_points[idx, 1]),
+                    textcoords="offset points",
+                    xytext=(0, 12),
+                    ha='center',
+                    fontsize=11,
+                    weight='bold',
+                    bbox=dict(boxstyle='round,pad=0.4',
+                             facecolor='white',
+                             edgecolor=colors[idx],
+                             linewidth=2,
+                             alpha=0.9),
+                    zorder=101)
+    
+    # Configurar ejes y estilo
+    plt.xlabel('Latent Dimension 1 (z₁)', fontsize=12)
+    plt.ylabel('Latent Dimension 2 (z₂)', fontsize=12)
+    plt.title(f'Latent Space Distribution (n={n_samples} samples per input)', 
+             fontsize=14, weight='bold')
+    plt.grid(True, alpha=0.3, linestyle='--')
+    
+    # Ajustar límites con margen
+    x_range = samples[:, 0].max() - samples[:, 0].min()
+    y_range = samples[:, 1].max() - samples[:, 1].min()
+    x_margin = max(x_range * 0.15, 0.5)
+    y_margin = max(y_range * 0.15, 0.5)
+    
+    plt.xlim(samples[:, 0].min() - x_margin, samples[:, 0].max() + x_margin)
+    plt.ylim(samples[:, 1].min() - y_margin, samples[:, 1].max() + y_margin)
+    
+    # Agregar líneas en 0 para referencia
+    plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.5, alpha=0.5)
+    plt.axvline(x=0, color='gray', linestyle='--', linewidth=0.5, alpha=0.5)
+    
+    # Leyenda
+    plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left',
+              ncol=1, fontsize=10, framealpha=0.95)
+    
+    plt.tight_layout()
+    
+    print(f"Saving distribution plot to: {output_path}")
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print("Distribution plot saved successfully")
+
+   

@@ -239,6 +239,9 @@ __marimo__/
 *.svg
 *.wav
 
+#autoencoder state
+*.pkl
+
 # outputs
 /outputs
 /results

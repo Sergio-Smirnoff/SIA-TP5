@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-
+import time
 # Agregar el directorio padre al path
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -11,66 +11,118 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+def test_with_bmp_vae():
+    print("\n======= TEST VAE WITH BMP IMAGES =======")
 
-# ---------------------------------------------------------
-#  Dataset preparation
-# ---------------------------------------------------------
-
-def prepare_dataset():
-    X = []
-    for char in get_font3():
-        img = to_binary_array(char)
-        X.append(img.flatten())   # 35-dimensional vector
-
-    X = np.array(X).astype(float)
-    return X
-
-
-# ---------------------------------------------------------
-#  ASCII visualization
-# ---------------------------------------------------------
-
-def show_char(vec):
-    img = vec.reshape(7, 5)
-    for r in range(7):
-        print("".join(["█" if x >= 0.5 else " " for x in img[r]]))
-
-
-def test_with_bmp():
-    parser = BMPParser()
-
-    # dataset de imagenes bmp normalizadas [0;1]
+    # -----------------------------
+    # 1. Leer dataset BMP
+    # -----------------------------
+    print("Cargando dataset BMP...")
     dataset = load_bmp_dataset("bmp_images", normalize=True)
-    original_shape = dataset[0].shape
 
-    vae = VAE(architecture=[600, 2000, 1500, 1000, 500, 200, 50, 10, 2],   # input 35 → latent 2
+    n_images, H, W, C = dataset.shape
+    input_dim = H * W * C
+
+    print(f"Dataset shape: {dataset.shape}  -> input_dim={input_dim}")
+
+    # Flatten para VAE: (n_images, input_dim)
+    dataset_flat = dataset.reshape(n_images, input_dim)
+
+    # -----------------------------
+    # 2. Crear el VAE
+    # -----------------------------
+    vae = VAE(
+        architecture=[
+            input_dim,
+            3000,
+            500,
+            8
+        ],
         learning_rate=0.005,
         optimizer="adam",
         activation_function="sigmoid",
-        seed=42)
+        seed=42
+    )
 
-    EPOCHS = 200
-    
-    input_dim = dataset[0].shape[1]  # 600 * 600 * 3 = 1,080,000
-    
-    vae = VAE(architecture=[input_dim, 2000, 1500, 1000, 500, 200, 50, 10, 2],   # input 35 → latent 2
-            learning_rate=0.005,
-            optimizer="adam",
-            activation_function="sigmoid",
-            seed=42)
+    # -----------------------------
+    # 3. Entrenar
+    # -----------------------------
+    EPOCHS = 500
+    print("\nEntrenando VAE...")
+    vae.train(dataset_flat, epochs=EPOCHS)
+    # vae.load_state_pickle("bmp_images/500_200621-23-11-2025.pkl")  el q daba bien el ryu
+
+    # -----------------------------
+    # 4. Reconstruir las imágenes
+    # -----------------------------
+    reconstructed = []
+    latent_codes = []
+
+    print("\nReconstruyendo imágenes...")
+
+    for img_flat in dataset_flat:
+        mu, logvar, z = vae.encode(img_flat)
+        z = np.array(z).reshape(1, -1)
+
+        decoded = vae.decode(z)  # (1, input_dim)
+        reconstructed.append(decoded[0])
+        latent_codes.append(z.copy())
+
+    reconstructed = np.array(reconstructed)  # (n_images, input_dim)
+    reconstructed_imgs = reconstructed.reshape(n_images, H, W, C)
+
+    # -----------------------------
+    # 5. Generar nuevas imágenes moviendo el espacio latente
+    # -----------------------------
+    print("\nGenerando nuevas imágenes desde el espacio latente...")
+    new_images = []
+
+    for z in latent_codes:
+        z_mod = z.copy()
+
+        # ⬆️ mover 1 unidad en eje Y del espacio latente
+        z_mod[0, 0] += 1.0
+
+        decoded = vae.decode(z_mod)
+        new_images.append(decoded[0])
+
+    new_images = np.array(new_images).reshape(n_images, H, W, C)
+
+    # -----------------------------
+    # 6. Guardar imágenes reconstruidas y nuevas
+    # -----------------------------
+    out_dir_rec = Path("bmp_images/bmp_output/reconstructed")
+    out_dir_new = Path("bmp_images/bmp_output/generated")
+    out_dir_rec.mkdir(parents=True, exist_ok=True)
+    out_dir_new.mkdir(parents=True, exist_ok=True)
+
+    print("\nGuardando imágenes BMP...")
+
+    for i in range(n_images):
+        print(f'intput: \n{dataset_flat[i]}')
+        print(f'output:\n{reconstructed_imgs[i]}')
+
+        save_vae_output_as_bmp(
+            reconstructed_imgs[i],
+            str(out_dir_rec / f"reconstructed_{i}.bmp"),
+            original_shape=(H, W, C)
+        )
+
+        save_vae_output_as_bmp(
+            new_images[i],
+            str(out_dir_new / f"generated_{i}.bmp"),
+            original_shape=(H, W, C)
+        )
+
+    vae.save_state_pickle(f'bmp_images/{EPOCHS}_{time.strftime("%H%M%S-%d-%m-%Y")}.pkl')
+    print("\n===== TEST COMPLETADO EXITOSAMENTE =====")
 
 
-    vae.train(dataset, EPOCHS)
-
-    for idxm, img in enumerate(dataset):
-        acts_enc, zv_enc, acts_dec, zv_dec = vae.forward(img)
-        print(acts_dec)
-        # save_vae_output_as_bmp(acts_dec[-1][0], f"bmp_images/bmp_output/{idx}.bmp", original_shape=original_shape)
 
 
 def test_with_bits():
     # La arquitectura debe empezar con 35 (tamaño de cada emoji aplanado)
-    vae = VAE(architecture=[35, 25, 20, 15, 10, 5, 4],  # 35 input → 4 latent
+    vae = VAE(architecture=[35,25,15,2],  # 35 input → 4 latent
             learning_rate=0.005,
             optimizer="adam",
             activation_function="sigmoid",
@@ -82,26 +134,86 @@ def test_with_bits():
     # Convierte a array de numpy con forma (10, 35)
     emojis_flattened = np.array([emoji.flatten() for emoji in emojis])
     
-    EPOCHS = 100000
-    vae.load_state_pickle(f'bmp_images/{EPOCHS}.pkl')
+    EPOCHS = 10000
+    vae.load_state_pickle(f'bmp_images/10000_143709-23-11-2025.pkl')
 
-    # vae.train(emojis_flattened, epochs=EPOCHS)
+    print("EMOJIS")
+    print(emojis_flattened)
+    # history = vae.train(emojis_flattened, epochs=EPOCHS)
+
+    activations_enc, z_values_enc, activations_dec, z_values_dec = vae.forward(emojis_flattened)
+    print('RESULT EMOJIS')
+    print(activations_dec[-1])
 
     reconstructed_emojis = []
+    new_emojis = []
+    new_zs = []
+
     for i, emoji in enumerate(emojis_flattened):
-        # Encodear al espacio latente
+
         mu, logvar, z = vae.encode(emoji)
-        
-        # Decodear desde el espacio latente
-        reconstructed = vae.decode(z)  # z tiene forma (1, 2)
-        reconstructed_emojis.append(reconstructed[0].reshape(7, 5))
-        
-        print(f"Emoji {i} - Latent point (z): {z[0]}")
-    plot_all_emojis(reconstructed_emojis, "reconstructed_emojis.png")
 
-    generate_random_samples(vae)
-    # vae.save_state_pickle(f'bmp_images/{EPOCHS}.pkl')
+        # Asegurar shape (1,2)
+        z = np.array(z).reshape(1, -1)
 
+        # Reconstrucción normal
+        reconstructed = vae.decode(z)
+        reconstructed_emojis.append(reconstructed[0])  # <-- 35 valores
+
+        # Guardamos el z original
+        new_zs.append(z.copy())
+
+        print(f"Emoji {i} - Latent point (z): {z}")
+
+    # ---- Generación de nuevos samples ----
+
+    for z in new_zs:
+        z_mod = z.copy()
+
+        print(f'ZPREV={z_mod}')
+        z_mod[0, 1] += 100.0  # sumar 1 en Y
+        # z_mod[0, 0] += 0.3  # sumar 1 en Y
+
+
+        print(f'ZMOD={z_mod}')
+        new_emoji = vae.decode(z_mod)
+        new_emojis.append(new_emoji[0])  # <-- vector 35
+
+    # ---- Plot ----
+
+    reconstructed_bin = prepare_emojis_for_plot(reconstructed_emojis)
+    new_bin = prepare_emojis_for_plot(new_emojis)
+
+    plot_all_emojis(reconstructed_bin, "reconstructed_emojis.png")
+    plot_all_emojis(new_bin, "new_emojis_XY.png")
+
+
+
+
+
+    # generate_random_samples(vae)
+    # vae.save_state_pickle(f'bmp_images/{EPOCHS}_{time.strftime("%H%M%S-%d-%m-%Y")}.pkl')
+
+def prepare_emojis_for_plot(decoded_output, threshold=0.5):
+    """
+    Normaliza y reformatea la salida del decoder para plot_all_emojis
+    
+    Args:
+        decoded_output: Salida del vae.decode() - shape (n_emojis, 35) con valores [0,1]
+        threshold: Umbral para binarizar (default 0.5)
+    
+    Returns:
+        Array con shape (n_emojis, 7, 5) con valores binarios 0 o 1
+    """
+    if not isinstance(decoded_output, np.ndarray):
+        decoded_output = np.array(decoded_output)
+    # Binarizar: valores > threshold → 1, sino → 0
+    binary = (decoded_output > threshold).astype(int)
+    
+    # Reshape de (n_emojis, 35) a (n_emojis, 7, 5)
+    reshaped = binary.reshape(-1, 7, 5)
+    
+    return reshaped
 
 def generate_random_samples(vae):
     """Generar imágenes muestreando aleatoriamente desde el espacio latente"""
@@ -126,31 +238,6 @@ def generate_random_samples(vae):
 
 if __name__ == "__main__":
 
-    test_with_bits()
-    # print("Preparing dataset...")
-    # X = prepare_dataset()
-
-    # print("Initializing VAE...")
-    # vae = VAE(
-    #     architecture=[35, 16, 8, 4, 2],   # input 35 → latent 2
-    #     learning_rate=0.005,
-    #     optimizer="adam",
-    #     activation_function="relu",
-    #     seed=42
-    # )
-
-    # print("Training...")
-    # epochs = 50000
-    # vae.train(X, epochs)
-    # print("\nTraining finished!")
-
-    # # ---------------------------------------------------------
-    # # Show reconstruction of a sample char
-    # # ---------------------------------------------------------
-    # idx = 5
-    # print("\nOriginal:")
-    # show_char(X[idx])
-
-    # print("\nReconstruction:")
-    # acts_enc, zv_enc, acts_dec, zv_dec = vae.forward(X[[idx]])
-    # show_char(acts_dec[-1][0])
+    # test_with_bits()
+    test_with_bmp_vae()
+    
