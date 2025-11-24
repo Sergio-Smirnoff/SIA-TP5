@@ -383,15 +383,18 @@ class VAE(BasicAutoencoder):
 
             # Backward
             # beta = epoch/epochs #---> lineal
+            # beta = max(0, (3*epoch/epochs)-2)
+            
             # beta = np.tanh(epoch/epochs)
             # beta = np.sin(6 *epoch/epochs)**2
-            beta = np.cos(2* epoch/epochs)**2
+            # beta = np.cos(2* epoch/epochs)**2
+            beta = 0.01 / (1 - (epoch/epochs)**(1/4))
             grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec, beta=beta)
             
             self.update(*grads)
             # self.save_gradients_and_weights_to_csv(*grads, epoch)
             # print(f'dW_mu={grads[2]}\n db_mu={grads[3]}\n dW_logvar={grads[4]}\n db_logvar={grads[5]}')
-            if epoch % (epochs/10) == 0:
+            if epoch % (epochs/10) == 0 or epoch == epochs-1:
                 # print(f"Epoch {epoch}: Loss={loss:.4f} Recon={loss_recon:.4f} KL={kl_loss:.4f}")
                 self.plot_latent_pweaseeeeee(X, epoch)
                 
