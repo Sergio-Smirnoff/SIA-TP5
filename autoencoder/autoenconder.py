@@ -211,13 +211,11 @@ class BasicAutoencoder:
             loss: Computed loss value
         """
         log.info("Computing loss...")
-        ## threadhold
-
+        ## threshold
         Y_pred_binary = (Y_pred >= 0.5).astype(float)
 
         #loss = -np.mean(Y_true * np.log(Y_pred + 1e-8) + (1 - Y_true) * np.log(1 - Y_pred + 1e-8)) 
         loss = -np.mean(Y_true * np.log(Y_pred_binary + 1e-8) + (1 - Y_true) * np.log(1 - Y_pred_binary + 1e-8))
-        # TODO: verificar si poder usar el error 1e-8 o usar el epsilon normal
         return loss
     
     def train(self, X, Y=None, epochs=1000):
@@ -257,7 +255,7 @@ class BasicAutoencoder:
         #X_norm = (X - self.X_min) / (self.X_max - self.X_min + 1e-8)
         activations, _ = self.forward(X)
         Y_norm = activations[-1]
-        return Y_norm * (self.X_max - self.X_min) + self.X_min
+        return Y_norm
 
     
     def get_latent_representation(self, X):

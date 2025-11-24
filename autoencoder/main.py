@@ -159,12 +159,11 @@ def main2():
     ## Hiperparametros claves: [35,25,18,12,8,4,3], learning_rate=0.001, epsilon=1e-4, optimizer='adam', activation_function='tanh', seed=42
 
     encoder = BasicAutoencoder(
-        [35,25,18,12,8,4,2],
-        ##[35,20,10,2],
+        ##[35,25,18,12,8,4,2],
+        [35,20,10,2],
         ##[35, 16, 8, 4, 2],
-        ## probar con threadhold ( 0.5 )
+        ## probar con threshold ( 0.5 )
         ## Probar con 3 / 4 en la capa intermedia
-
         learning_rate=0.001,
         epsilon=1e-4,
         optimizer='adam',
@@ -190,7 +189,7 @@ def main2():
 
     errors = encoder.train(binary_characters, epochs=EPOCHS)
 
-    save_error_to_file("GoodArq", errors, "outputs/errors.txt")
+    save_error_to_file("adam", errors, "outputs/errors.txt")
 
     plt.plot(errors)
     plt.xlabel("Epochs")
@@ -199,12 +198,12 @@ def main2():
     plt.savefig("outputs/error_over_epochs.png")
     plt.close()
 
-    with open("outputs/errors.txt", "w") as f:
-        for epoch_errors in error_by_epoch:
-            f.write(",".join(map(str, epoch_errors)) + "\n")
+    # with open("outputs/errors.txt", "a") as f:
+    #     for epoch_errors in error_by_epoch:
+    #         f.write(",".join(map(str, epoch_errors)) + "\n")
 
-    errors_by_epoch = read_errors_from_file("outputs/errors.txt")
-    plot_error(errors_by_epoch, output_path="outputs/error_over_epochs.png")
+    # errors_by_epoch = read_errors_from_file("outputs/errors.txt")
+    # plot_error(errors_by_epoch, output_path="outputs/error_over_epochs.png")
 
     #Read errors from file
     

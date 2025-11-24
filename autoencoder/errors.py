@@ -49,7 +49,7 @@ def main():
     plt.xlabel("Epoch")
     plt.ylabel("Error")
     #plt.yscale("log")
-    plt.legend(title="Architecture")
+    plt.legend(title="Activation")
     plt.grid(True)
     plt.savefig("outputs/error_over_epochs.png")
     plt.close()
