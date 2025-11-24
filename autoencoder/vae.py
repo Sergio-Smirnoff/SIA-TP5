@@ -154,7 +154,7 @@ class VAE(BasicAutoencoder):
         
     def backward(self, X, Y,
                  activations_enc, z_values_enc,
-                 activations_dec, z_values_dec):
+                 activations_dec, z_values_dec, beta=1):
 
         m = X.shape[0]  # batch size
 
@@ -201,8 +201,10 @@ class VAE(BasicAutoencoder):
         dlogvar_kl = 0.5 * (np.exp(self.logvar) - 1)  # (batch_size, latent_dim)
 
         # Gradientes totales
-        dmu = dmu_recon + dmu_kl  # (batch_size, latent_dim)
-        dlogvar = dlogvar_recon + dlogvar_kl  # (batch_size, latent_dim)
+
+        #tiene en cuenta el beta annealing
+        dmu = dmu_recon + (dmu_kl * beta)  # (batch_size, latent_dim)
+        dlogvar = dlogvar_recon + (dlogvar_kl * beta)  # (batch_size, latent_dim)
 
         # Gradientes de los pesos y biases de mu y logvar
         A_enc_last = activations_enc[-1]  # (batch_size, encoder_arch[-1])
@@ -380,7 +382,8 @@ class VAE(BasicAutoencoder):
             rango.set_postfix(loss=loss)
 
             # Backward
-            grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec)
+            beta = epoch/epochs
+            grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec, beta=beta)
             
             self.update(*grads)
             # self.save_gradients_and_weights_to_csv(*grads, epoch)

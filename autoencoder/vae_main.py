@@ -34,11 +34,11 @@ def test_with_bmp_vae():
     vae = VAE(
         architecture=[
             input_dim,
-            3000,
+            2000,
             500,
-            8
+            2
         ],
-        learning_rate=0.005,
+        learning_rate=0.001,
         optimizer="adam",
         activation_function="sigmoid",
         seed=42
