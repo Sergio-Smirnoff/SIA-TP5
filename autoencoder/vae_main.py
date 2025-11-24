@@ -47,7 +47,7 @@ def test_with_bmp_vae():
     # -----------------------------
     # 3. Entrenar
     # -----------------------------
-    EPOCHS = 500
+    EPOCHS = 250
     print("\nEntrenando VAE...")
     vae.train(dataset_flat, epochs=EPOCHS)
     # vae.load_state_pickle("bmp_images/500_200621-23-11-2025.pkl")  el q daba bien el ryu

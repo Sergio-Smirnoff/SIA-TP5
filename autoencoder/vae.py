@@ -382,7 +382,10 @@ class VAE(BasicAutoencoder):
             rango.set_postfix(loss=loss)
 
             # Backward
-            beta = epoch/epochs
+            # beta = epoch/epochs #---> lineal
+            # beta = np.tanh(epoch/epochs)
+            # beta = np.sin(6 *epoch/epochs)**2
+            beta = np.cos(2* epoch/epochs)**2
             grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec, beta=beta)
             
             self.update(*grads)
