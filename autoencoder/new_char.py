@@ -1,5 +1,4 @@
 import numpy as np
-
 from autoencoder.main import plot_latent_space
 from autoenconder import BasicAutoencoder
 from read_utils import get_font3, to_binary_array, plot_character
@@ -12,12 +11,12 @@ X = np.array([to_binary_array(c).flatten() for c in characters])
 n = X.shape[0]
 labels_chars = np.array([chr(i) for i in range(0x60, 0x80)])
 
-architecture = [35, 30, 25, 20, 15, 10, 8, 4, 2]
+architecture = [35, 25, 18, 12, 8, 4, 2]
 
 encoder = BasicAutoencoder(
     architecture,
-    learning_rate=0.0001,
-    epsilon=1e-6,
+    learning_rate=0.001,
+    epsilon=1e-4,
     optimizer="adam",
     activation_function="tanh",
     seed=42
@@ -31,7 +30,15 @@ plot_latent_space(encoder, X, labels=labels_chars,
                   output_path="outputs/latent_space.png")
 print("saving model state...")
 
-np.random.seed(None)
+#letra1 = X[3].reshape(7, 5)
+#plot_character(letra1, output_path="letra_c.png")
+
+#letra2 = X[0].reshape(7, 5)
+#plot_character(letra2, output_path="letra_comi.png")
+
+#letra3 = X[19].reshape(7, 5)
+#plot_character(letra3, output_path="letra_s.png")
+
 idxA, idxB = np.random.choice(n, size=2, replace=False)
 print(f"Índices seleccionados aleatoriamente: {idxA} y {idxB}")
 
