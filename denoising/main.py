@@ -1,5 +1,3 @@
-
-
 import datetime
 import time
 import numpy as np
@@ -10,6 +8,7 @@ from error_utils import compare_pixel_error, plot_error, read_errors_from_file
 from autoenconder import BasicAutoencoder, add_salt_and_pepper_noise, add_gaussian_noise
 import logging as log
 from read_utils import plot_character, get_font3, to_binary_array
+from arch_comp import run_noise_experiments
 
 INPUT_SIZE = 5 * 7
 LATENT_SIZE = 2
@@ -28,7 +27,6 @@ def save_error_to_file(arq, errors, file_path):
     with open(file_path, "a") as f:
         line = f"{arq};{timestamp};{errors_str}\n"
         f.write(line)
-
 
 def plot_latent_space(encoder, X, labels=None, output_path='latent_space.png'):
     """Plot latent space representations in 2D."""
@@ -97,28 +95,8 @@ def plot_latent_space(encoder, X, labels=None, output_path='latent_space.png'):
 
 def main2():
 
-    ## Hiperparametros claves: [35,25,18,12,8,4,3], learning_rate=0.001, epsilon=1e-4, optimizer='adam', activation_function='tanh', seed=42
-
     encoder = BasicAutoencoder(
-        #[35,25,15,8,2],
         [35,30,25,20,15,10,5,2],
-        #este para 0,1 y 0,2 y 0,3 y 0,4 gauss
-        #           [35,30,25,20,15,10,5,2],1
-                    # learning_rate=0.001,
-                    # epsilon=1e-4,
-                    # optimizer='adam',
-                    # activation_function='tanh',
-                    # noise_amount=0.0,
-                    # sigma=0.1,
-                    # seed=42
-        #este para 0.1 salt pepper
-        #           [35,30,25,20,15,10,5,2],
-        #           earning_rate=0.001,
-        #           epsilon=1e-4,
-        #           optimizer='adam',
-        #           activation_function='tanh',
-        #           noise_amount=0.1,
-        #           seed=42
 
         learning_rate=0.001,
         epsilon=1e-4,
@@ -131,17 +109,10 @@ def main2():
 
     #train
     characters = get_font3()
-    #characters = [characters[-1]]  
-    # binary_characters = [to_binary_array(character) for character in characters]
     binary_characters = np.array([
         to_binary_array(character).flatten() 
         for character in characters
     ])
-
-
-        
-    # print("Initializing from file...")
-    # encoder.initialize_from_file_pickle("outputs/autoencoder_state_103939.17.11.2025.pkl")
 
     error_by_epoch = []
 
@@ -179,13 +150,9 @@ def main2():
     plot_latent_space(encoder, binary_characters, labels=labels_chars, 
                     output_path="outputs/latent_space.png")
     print("saving model state...")
-    # encoder.save_state("autoencoder_state_{}.txt".format(time.strftime("%H%M%S.%d.%m.%Y")))
     encoder.save_state_pickle("autoencoder_state_{}.pkl".format(time.strftime("%H%M%S.%d.%m.%Y")))
 
-    # --- Nueva sección: Guardar caracteres con ruido vs reconstruidos ---
-    print("Generating noisy vs predicted comparison images...")
-
-    # Crear carpeta de salida
+    # --- Guardar caracteres con ruido vs reconstruidos ---
     os.makedirs("outputs/noisy_vs_predicted", exist_ok=True)
 
     all_originals = []
@@ -196,14 +163,16 @@ def main2():
 
         # Generar ruido con la misma función usada en entrenamiento,
         # pero sobre UN SOLO carácter.
-        noisy_char = add_salt_and_pepper_noise(
-            character.reshape(1, -1),
-            noise_amount=encoder.noise_amount
-        )
-        # noisy_char = add_gaussian_noise(
-        #     character.reshape(1, -1),
-        #     sigma=encoder.sigma
-        # )
+        if encoder.noise_amount!=0.0:
+            noisy_char = add_salt_and_pepper_noise(
+                character.reshape(1, -1),
+                noise_amount=encoder.noise_amount
+            )
+        if encoder.sigma!=0.0:
+            noisy_char = add_gaussian_noise(
+                character.reshape(1, -1),
+                sigma=encoder.sigma
+            )
 
         # Obtener reconstrucción del carácter ruidoso
         predicted = encoder.predict(noisy_char).reshape(7, 5)
@@ -214,21 +183,6 @@ def main2():
         all_originals.append(original_reshaped)
         all_noisy.append(noisy_reshaped)
         all_predicted.append(predicted)
-
-        # Graficar y guardar
-        # fig, axes = plt.subplots(1, 2, figsize=(5, 4))
-
-        # axes[0].imshow(noisy_reshaped, cmap='gray_r')
-        # axes[0].set_title("Noisy Input")
-        # axes[0].axis('off')
-
-        # axes[1].imshow(predicted, cmap='gray_r')
-        # axes[1].set_title("Predicted Output")
-        # axes[1].axis('off')
-
-        # plt.tight_layout()
-        # fig.savefig(f"outputs/noisy_vs_predicted/noisy_vs_pred_{idx+1}.png", dpi=120)
-        # plt.close()
 
         fig, axes = plt.subplots(1, 3, figsize=(9, 4))
 
@@ -249,40 +203,16 @@ def main2():
         fig.savefig(f"outputs/noisy_vs_predicted/comparison_{idx+1}.png", dpi=120)
         plt.close()
 
-
-    num_chars = len(binary_characters)
     rows = 6
     cols = 6
-    #fig, axes = plt.subplots(num_chars, 3, figsize=(9, num_chars * 1.5))
     fig, axes = plt.subplots(1, 3, figsize=(18, 12))
-
-    # for i in range(num_chars):
-    #     axes[i, 0].imshow(all_originals[i], cmap='gray_r')
-    #     axes[i, 0].axis('off')
-    #     if i == 0:
-    #         axes[i, 0].set_title("Original")
-        
-    #     axes[i, 1].imshow(all_noisy[i], cmap='gray_r')
-    #     axes[i, 1].axis('off')
-    #     if i == 0:
-    #         axes[i, 1].set_title("Noisy Input")
-        
-    #     axes[i, 2].imshow(all_predicted[i], cmap='gray_r')
-    #     axes[i, 2].axis('off')
-    #     if i == 0:
-    #         axes[i, 2].set_title("Predicted Output")
-
-    # plt.tight_layout()
-    # fig.savefig("outputs/noisy_vs_predicted/all_comparisons.png", dpi=150)
-    # plt.close()
 
     for col_idx, (images, title) in enumerate([
         (all_originals, "Original"),
         (all_noisy, "Noisy Input"),
         (all_predicted, "Predicted Output")
     ]):
-        # Crear grid para este tipo de imagen
-        grid = np.ones((rows * 7 + (rows-1) * 2, cols * 5 + (cols-1) * 2)) * 0  # Padding de 2 pixeles entre caracteres
+        grid = np.ones((rows * 7 + (rows-1) * 2, cols * 5 + (cols-1) * 2)) * 0 
         
         for i, img in enumerate(images):
             if i >= rows * cols:
@@ -305,6 +235,20 @@ def main2():
 
     print("Saved comparison images in outputs/noisy_vs_predicted/")
 
-
 if __name__ == "__main__":
     main2()
+    # characters = get_font3()
+    # binary_characters = np.array([
+    #     to_binary_array(character).flatten() 
+    #     for character in characters
+    # ])
+
+    # architectures = [
+    #     [35,25,15,2],
+    #     [35,30,25,20,15,10,5,2],
+    #     [35,25,18,12,8,4,2],
+    # ]
+
+    # labels = np.array([chr(i) for i in range(0x60, 0x80)])
+
+    # run_noise_experiments(binary_characters, labels, architectures)

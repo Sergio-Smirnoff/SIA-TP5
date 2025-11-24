@@ -1,18 +1,9 @@
-
-import sys
 import logging as log
 import numpy as np
 from tqdm import tqdm
-import re
 from activation_functions import sigmoid, sigmoid_derivative, relu, relu_derivative, tanh, tanh_derivative
 
 def add_salt_and_pepper_noise(X, noise_amount=0.10):
-        """
-        X: matriz binaria (0 o 1) de shape (n_samples, n_features)
-        noise_amount: porcentaje de píxeles a alterar
-        
-        Retorna: X_noisy
-        """
         X_noisy = X.copy()
 
         # número de píxeles a alterar por muestra
@@ -28,12 +19,6 @@ def add_salt_and_pepper_noise(X, noise_amount=0.10):
         return X_noisy
 
 def add_gaussian_noise(X, sigma=0.0):
-    """
-    Añade ruido gaussiano a datos binarios en rango 0–1.
-    
-    X: matriz (n_samples, n_features)
-    sigma: desviación estándar del ruido
-    """
     noise = np.random.normal(0, sigma, X.shape)
     X_noisy = X + noise
     X_noisy = np.clip(X_noisy, 0.0, 1.0)
@@ -260,6 +245,7 @@ class BasicAutoencoder:
 
         X_norm, X_min, X_max = self.normalize(X)
         X_norm = X
+        X_noisy = X
 
         if Y is None:
             Y = X_norm
@@ -324,33 +310,6 @@ class BasicAutoencoder:
                 A = sigmoid(z)
         
         return A
-    
-    def evaluate_pixel_error(self, X):
-        """Evaluate pixel-wise error over dataset X."""
-        output = self.predict(X)
-        output_binary = (output > 0.5).astype(float)
-        errors = np.sum(np.abs(X - output_binary), axis=1)
-        return errors
-    
-
-    ## Funcion Generativa
-    def generate_interpolation(self, X, idx1, idx2, alpha=0.5):
-        """
-        New character generation by interpolating between two characters in latent space.
-        
-        Args:
-            X: Dataset
-            idx1, idx2: Indices to interpolate
-            alpha: Interpolation factor [0, 1]
-        
-        Returns:
-            New character generated
-        """
-        latent = self.get_latent_representation(X)
-        new_latent = alpha * latent[idx1] + (1 - alpha) * latent[idx2]
-        new_latent = new_latent.reshape(1, -1)
-        new_char = self.decode_from_latent(new_latent)
-        return (new_char > 0.5).astype(float)
 
     def save_state_pickle(self, filename):
         """Save model state to a file."""
