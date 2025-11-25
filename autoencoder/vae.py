@@ -126,6 +126,9 @@ class VAE(BasicAutoencoder):
         # A tiene forma (batch_size, encoder_arch[-1])
         # mu y logvar tendrán forma (batch_size, latent_dim)
 
+
+        #Z = mu + sigma * eps
+
         self.mu = np.dot(A, self.W_mu) + self.b_mu
         self.logvar = np.dot(A, self.W_logvar) + self.b_logvar
         self.std = np.exp(0.5 * self.logvar)
@@ -221,6 +224,9 @@ class VAE(BasicAutoencoder):
         # 3. PROPAGAR HACIA EL ENCODER
         # --------------------------
         # Gradiente que llega a la última activación del encoder
+
+        #h(X) = A ---> Z = W_mu * (A) + W_simga * (A)
+
         dh = (
             np.dot(dmu, self.W_mu.T) +
             np.dot(dlogvar, self.W_logvar.T)
@@ -389,7 +395,7 @@ class VAE(BasicAutoencoder):
             # beta = np.sin(6 *epoch/epochs)**2
             # beta = np.cos(2* epoch/epochs)**2
             beta = 0.01 / (1 - (epoch/epochs))
-            grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec)
+            grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec, beta=beta)
             
             self.update(*grads)
             # self.save_gradients_and_weights_to_csv(*grads, epoch)

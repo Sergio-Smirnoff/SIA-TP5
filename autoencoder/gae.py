@@ -1,13 +1,16 @@
-from autoencoder.autoenconder import BasicAutoencoder
-from autoencoder.main import plot_latent_space
-from autoencoder.vae_main import prepare_emojis_for_plot
+from autoenconder import BasicAutoencoder
+from main import plot_latent_space
+from vae_main import prepare_emojis_for_plot
 from bmp_images.bmp import load_bmp_dataset, save_vae_output_as_bmp, load_emojis_json, plot_all_emojis
 import numpy as np
 import sys
 from pathlib import Path
 
-
 sys.path.append(str(Path(__file__).parent.parent))
+
+
+
+
 
 
 def test_with_bmp_gae():
@@ -22,18 +25,20 @@ def test_with_bmp_gae():
     print(f"Dataset shape: {dataset.shape}  -> input_dim={input_dim}")
 
     dataset_flat = dataset.reshape(n_images, input_dim)
-    gae = BasicAutoencoder(architecture=[input_dim, 2000, 1000, 500, 250, 100, 50, 2],
+    gae = BasicAutoencoder(architecture=[input_dim, 2000, 50, 2],
                            learning_rate=0.001,
                            optimizer="adam",
-                           activation_function="sigmoid",
+                           activation_function="tanh",
                            seed=None)
 
-    EPOCHS = 500
+    EPOCHS = 2000
     print("\nEntrenando GAE...")
-    gae.train(dataset_flat, epochs=EPOCHS)
-    # vae.load_state_pickle("bmp_images/500_200621-23-11-2025.pkl")  el q daba bien el ryu
+    # gae.train(dataset_flat, epochs=EPOCHS)
+    gae.initialize_from_file_pickle(f'outputs/bmp_images/gae_bmp_tanh.pkl')
     plot_latent_space(
-        gae, dataset_flat,
+        encoder=gae,
+        X=dataset_flat,
+        labels=[f'BMP: {label}' for label in range(len(dataset_flat))],
         output_path="bmp_images/bmp_output/latent_space.png"
     )
 
@@ -56,13 +61,37 @@ def test_with_bmp_gae():
     print("\nGenerando nuevas imágenes desde el espacio latente...")
     new_images = []
 
-    for z in latent_codes:
-        z_mod = z.copy()
+    # for z in latent_codes:
+    #     z_mod = z.copy()
 
-        z_mod[0, 0] += 1.0
+    #     z_mod[0, 0] += 1.0
 
-        decoded = gae.decode_from_latent(z_mod)
-        new_images.append(decoded)
+    #     decoded = gae.decode_from_latent(z_mod)
+    #     new_images.append(decoded)
+
+    z_mod_0 = latent_codes[0].copy()
+    z_mod_0[0, 0] += -0.2  # sumar 1 en X
+    z_mod_0[0, 1] += 0.2 # sumar 1 en X
+    new_emoji = gae.decode_from_latent(z_mod_0)
+    new_images.append(new_emoji[0])  
+
+    z_mod_0 = latent_codes[0].copy()
+    z_mod_0[0, 0] += -0.4  # sumar 1 en X
+    z_mod_0[0, 1] += 0.4 # sumar 1 en X
+    new_emoji = gae.decode_from_latent(z_mod_0)
+    new_images.append(new_emoji[0]) 
+
+    z_mod_0 = latent_codes[0].copy()
+    z_mod_0[0, 0] += -0.8  # sumar 1 en X
+    z_mod_0[0, 1] += 0.8 # sumar 1 en X
+    new_emoji = gae.decode_from_latent(z_mod_0)
+    new_images.append(new_emoji[0])  
+
+    z_mod_0 = latent_codes[2].copy()
+    z_mod_0[0, 0] += 100  # sumar 1 en X
+    # z_mod_0[0, 1] += 1 # sumar 1 en X
+    new_emoji = gae.decode_from_latent(z_mod_0)
+    new_images.append(new_emoji[0])   
 
     new_images = np.array(new_images).reshape(n_images, H, W, C)
 
@@ -89,7 +118,7 @@ def test_with_bmp_gae():
             original_shape=(H, W, C)
         )
 
-    #vae.save_state_pickle(f'bmp_images/{EPOCHS}_{time.strftime("%H%M%S-%d-%m-%Y")}.pkl')
+    gae.save_state_pickle(f'bmp_images/gae_bmp_tanh.pkl')
     print("\n===== TEST COMPLETADO EXITOSAMENTE =====")
 
 
@@ -97,7 +126,7 @@ def test_with_bits():
     gae = BasicAutoencoder(architecture=[35, 25, 15, 2],
               learning_rate=0.005,
               optimizer="adam",
-              activation_function="sigmoid",
+              activation_function="tanh",
               seed=None)
 
     emojis = load_emojis_json("bmp_images/emojis.json")
@@ -106,15 +135,17 @@ def test_with_bits():
     emojis_flattened = np.array([emoji.flatten() for emoji in emojis])
 
     EPOCHS = 100000
-    # vae.load_state_pickle(f'bmp_images/10000_143709-23-11-2025.pkl')
-
+    gae.initialize_from_file_pickle(f'outputs/bmp_images/gaebits.pkl')
+    
     print("EMOJIS")
     print(emojis_flattened)
-    history = gae.train(emojis_flattened, epochs=EPOCHS)
+    # history = gae.train(emojis_flattened, epochs=EPOCHS)
 
     plot_latent_space(
-        gae, emojis_flattened,
-        output_path="bmp_images/bit_output/latent_space.png"
+        encoder=gae, 
+        X=emojis_flattened,
+        labels=[f'Emoji: {label}' for label in range(len(emojis_flattened))],
+        output_path="bmp_images/gae_bit_output/latent_space_gae.png"
     )
 
     activations, z_values = gae.forward(emojis_flattened)
@@ -134,24 +165,35 @@ def test_with_bits():
         new_zs.append(latent)
 
         print(f"Emoji {i}")
+    
+# for z in new_zs:
+    z_mod_0 = new_zs[4].copy()
+    z_mod_0[0, 1] += -0.75  # sumar 1 en Y
+    z_mod_0[0, 0] += 0.75  # sumar 1 en X
+    new_emoji = gae.decode_from_latent(z_mod_0)
+    new_emojis.append(new_emoji[0])  # <-- vector 35# for z in new_zs:
 
+    z_mod_0 = new_zs[4].copy()
+    z_mod_0[0, 1] += -1.25  # sumar 1 en Y
+    z_mod_0[0, 0] += 1.25  # sumar 1 en X
+    new_emoji = gae.decode_from_latent(z_mod_0)
+    new_emojis.append(new_emoji[0])  # <-- vector 35
 
-    for z in new_zs:
-        z_mod = z.copy()
-
-        print(f'ZPREV={z_mod}')
-        z_mod[0, 1] += 1.0  # sumar 1 en Y
-        # z_mod[0, 0] += 0.3  # sumar 1 en Y
-
-        print(f'ZMOD={z_mod}')
-        new_emoji = gae.decode_from_latent(z_mod)
-        new_emojis.append(new_emoji[0])
+    # for z in new_zs:
+    z_mod_0 = new_zs[4].copy()
+    z_mod_0[0, 1] += -2  # sumar 1 en Y
+    z_mod_0[0, 0] += 2  # sumar 1 en X
+    new_emoji = gae.decode_from_latent(z_mod_0)
+    new_emojis.append(new_emoji[0])  # <-- vector 35
 
     reconstructed_bin = prepare_emojis_for_plot(reconstructed_emojis)
     new_bin = prepare_emojis_for_plot(new_emojis)
 
-    plot_all_emojis(reconstructed_bin, "reconstructed_emojis.png")
-    plot_all_emojis(new_bin, "new_emojis_XY.png")
+    plot_all_emojis(reconstructed_bin, "reconstructed_emojis_gae.png")
+    plot_all_emojis(new_bin, "new_emojis_gae.png")
+
+    gae.save_state_pickle(f'bmp_images/gaebits.pkl')
+
 
 if __name__ == "__main__":
     # test_with_bits()

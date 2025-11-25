@@ -77,33 +77,25 @@ def test_with_bmp_vae():
     print("\nGenerando nuevas imágenes desde el espacio latente...")
     new_images = []
 
-    # for z in latent_codes:
-    z_mod_0 = latent_codes[0].copy()
-    z_mod_0[0, 0] += 1.0
-    # z_mod[0, 1] += -2.0
-    decoded = vae.decode(z_mod_0)
-    new_images.append(decoded[0])
+    z_mod_0 = latent_codes[1].copy()
+    z_mod_0[0, 0] += 10  # sumar 1 en X
+    new_emoji = vae.decode(z_mod_0)
+    new_images.append(new_emoji[0])  
 
-    # for z in latent_codes:
-    z_mod_0 = latent_codes[0].copy()
-    z_mod_0[0, 0] += 2.0
-    # z_mod[0, 1] += -2.0
-    decoded = vae.decode(z_mod_0)
-    new_images.append(decoded[0])
+    z_mod_0 = latent_codes[1].copy()
+    z_mod_0[0, 0] += 25  # sumar 1 en X
+    new_emoji = vae.decode(z_mod_0)
+    new_images.append(new_emoji[0])  
 
-    # for z in latent_codes:
-    z_mod_0 = latent_codes[0].copy()
-    z_mod_0[0, 0] += 3.0
-    # z_mod[0, 1] += -2.0
-    decoded = vae.decode(z_mod_0)
-    new_images.append(decoded[0])
+    z_mod_0 = latent_codes[1].copy()
+    z_mod_0[0, 0] += 50  # sumar 1 en X
+    new_emoji = vae.decode(z_mod_0)
+    new_images.append(new_emoji[0])  
 
-    # for z in latent_codes:
-    z_mod_0 = latent_codes[0].copy()
-    z_mod_0[0, 0] += 4.0
-    # z_mod[0, 1] += -2.0
-    decoded = vae.decode(z_mod_0)
-    new_images.append(decoded[0])
+    z_mod_0 = latent_codes[1].copy()
+    z_mod_0[0, 0] += 100  # sumar 1 en X
+    new_emoji = vae.decode(z_mod_0)
+    new_images.append(new_emoji[0])  
     
 
 
@@ -156,11 +148,11 @@ def test_with_bits():
     emojis_flattened = np.array([emoji.flatten() for emoji in emojis])
     
     EPOCHS = 10000
-    # vae.load_state_pickle(f'bmp_images/10000_191657-24-11-2025.pkl')
+    vae.load_state_pickle(f'bmp_images/10000_191657-24-11-2025.pkl')
 
     print("EMOJIS")
     print(emojis_flattened)
-    history = vae.train(emojis_flattened, epochs=EPOCHS)
+    # history = vae.train(emojis_flattened, epochs=EPOCHS)
 
     activations_enc, z_values_enc, activations_dec, z_values_dec = vae.forward(emojis_flattened)
     print('RESULT EMOJIS')
@@ -187,21 +179,28 @@ def test_with_bits():
         print(f"Emoji {i} - Latent point (z): {z}")
 
     # ---- Generación de nuevos samples ----
+    
+# for z in new_zs:
+    z_mod_0 = new_zs[4].copy()
+    z_mod_0[0, 1] += -0.75  # sumar 1 en Y
+    z_mod_0[0, 0] += 0.75  # sumar 1 en X
+    new_emoji = vae.decode(z_mod_0)
+    new_emojis.append(new_emoji[0])  # <-- vector 35# for z in new_zs:
+
+    z_mod_0 = new_zs[4].copy()
+    z_mod_0[0, 1] += -1.25  # sumar 1 en Y
+    z_mod_0[0, 0] += 1.25  # sumar 1 en X
+    new_emoji = vae.decode(z_mod_0)
+    new_emojis.append(new_emoji[0])  # <-- vector 35
 
     # for z in new_zs:
-    z_mod_0 = new_zs[0].copy()
-    z_mod_0[0, 1] += -0.5  # sumar 1 en Y
-    z_mod_0[0, 0] += -0.5  # sumar 1 en X
+    z_mod_0 = new_zs[4].copy()
+    z_mod_0[0, 1] += -2  # sumar 1 en Y
+    z_mod_0[0, 0] += 2  # sumar 1 en X
     new_emoji = vae.decode(z_mod_0)
     new_emojis.append(new_emoji[0])  # <-- vector 35
-
-    z_mod_0 = new_zs[0].copy()
-    z_mod_0[0, 1] += -0.3  # sumar 1 en Y
-    z_mod_0[0, 0] += +1  # sumar 1 en X
-    new_emoji = vae.decode(z_mod_0)
-    new_emojis.append(new_emoji[0])  # <-- vector 35
-
     # ---- Plot ----
+
 
     reconstructed_bin = prepare_emojis_for_plot(reconstructed_emojis)
     new_bin = prepare_emojis_for_plot(new_emojis)
