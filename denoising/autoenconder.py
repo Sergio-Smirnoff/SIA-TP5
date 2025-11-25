@@ -1,11 +1,28 @@
-
-import sys
 import logging as log
 import numpy as np
 from tqdm import tqdm
-import re
 from activation_functions import sigmoid, sigmoid_derivative, relu, relu_derivative, tanh, tanh_derivative
 
+def add_salt_and_pepper_noise(X, noise_amount=0.10):
+        X_noisy = X.copy()
+
+        # número de píxeles a alterar por muestra
+        n_features = X.shape[1]
+        num_noisy_pixels = int(noise_amount * n_features)
+
+        for i in range(X.shape[0]):
+            idx = np.random.choice(n_features, num_noisy_pixels, replace=False)
+
+            # Salt & Pepper: valores al azar 0 o 1
+            X_noisy[i, idx] = 1 - X_noisy[i, idx]
+
+        return X_noisy
+
+def add_gaussian_noise(X, sigma=0.0):
+    noise = np.random.normal(0, sigma, X.shape)
+    X_noisy = X + noise
+    X_noisy = np.clip(X_noisy, 0.0, 1.0)
+    return X_noisy
 
 class BasicAutoencoder:
 
@@ -18,6 +35,8 @@ class BasicAutoencoder:
             epsilon=1e-4,
             optimizer='sgd',
             activation_function='sigmoid',
+            noise_amount=0.0,
+            sigma=0.0,
             seed=42
             ):
 
@@ -29,6 +48,8 @@ class BasicAutoencoder:
 
        # Additional parameters
         self.seed = seed
+        self.noise_amount=noise_amount
+        self.sigma=sigma
 
         # Errors
         self.error_entropy = 1
@@ -211,28 +232,36 @@ class BasicAutoencoder:
             loss: Computed loss value
         """
         log.info("Computing loss...")
-        ## threshold
+        ## threadhold
+
         Y_pred_binary = (Y_pred >= 0.5).astype(float)
 
         #loss = -np.mean(Y_true * np.log(Y_pred + 1e-8) + (1 - Y_true) * np.log(1 - Y_pred + 1e-8)) 
         loss = -np.mean(Y_true * np.log(Y_pred_binary + 1e-8) + (1 - Y_true) * np.log(1 - Y_pred_binary + 1e-8))
+        # TODO: verificar si poder usar el error 1e-8 o usar el epsilon normal
         return loss
     
     def train(self, X, Y=None, epochs=1000):
 
         X_norm, X_min, X_max = self.normalize(X)
         X_norm = X
+        X_noisy = X
 
         if Y is None:
             Y = X_norm
 
         losses = []
         pbar = tqdm(range(epochs), desc="Training", unit="epoch")
-
+        
         for epoch in pbar:
-            activations, z_values = self.forward(X_norm)
+            if self.noise_amount != 0.0:
+                X_noisy = add_salt_and_pepper_noise(X_norm, self.noise_amount)
+            if self.sigma != 0.0:
+                X_noisy = add_gaussian_noise(X_norm, self.sigma)
+
+            activations, z_values = self.forward(X_noisy)
             loss = self.compute_loss(activations[-1], Y)
-            dW, db = self.backward(X_norm, Y, activations, z_values)
+            dW, db = self.backward(X_noisy, Y, activations, z_values)
             
             if self.optimizer == 'adam':
                 self.update_parameters_adam(dW, db)
@@ -255,7 +284,8 @@ class BasicAutoencoder:
         #X_norm = (X - self.X_min) / (self.X_max - self.X_min + 1e-8)
         activations, _ = self.forward(X)
         Y_norm = activations[-1]
-        return Y_norm
+        Y_pred = Y_norm * (self.X_max - self.X_min) + self.X_min
+        return (Y_pred >= 0.5).astype(float)
 
     
     def get_latent_representation(self, X):
@@ -280,34 +310,6 @@ class BasicAutoencoder:
                 A = sigmoid(z)
         
         return A
-    
-    def evaluate_pixel_error(self, X):
-        """Evaluate pixel-wise error over dataset X."""
-        output = self.predict(X)
-        output_binary = (output > 0.5).astype(float)
-        errors = np.sum(np.abs(X - output_binary), axis=1)
-        return errors
-    
-
-    ## Funcion Generativa
-    def generate_interpolation(self, X, idx1, idx2, alpha=0.5):
-        """
-        New character generation by interpolating between two characters in latent space.
-        
-        Args:
-            X: Dataset
-            idx1, idx2: Indices to interpolate
-            alpha: Interpolation factor [0, 1]
-        
-        Returns:
-            New character generated
-        """
-        latent = self.get_latent_representation(X)
-        new_latent = alpha * latent[idx1] + (1 - alpha) * latent[idx2]
-        new_latent = new_latent.reshape(1, -1)
-        new_char = self.decode_from_latent(new_latent)
-        return (new_char > 0.5).astype(float)
-
 
     def save_state_pickle(self, filename):
         """Save model state to a file."""

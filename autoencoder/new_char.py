@@ -95,27 +95,22 @@ plot_latent_with_interpolations(
 )
 
 def build_interpolation_strip(idxA, idxB, alphas, output_dir):
-    # ordenar alphas de mayor a menor
     alphas_sorted = sorted(alphas, reverse=True)
 
     images = []
 
-    # A primero (alpha=1 implica A)
     origA_img = Image.open(os.path.join(output_dir, f"original_{idxA}.png"))
     images.append((f"A ({idxA})", origA_img))
 
-    # interpolaciones descendentes
     for alpha in alphas_sorted:
         fname = f"generated_{idxA}_{idxB}_alpha{alpha:.2f}.png"
         img = Image.open(os.path.join(output_dir, fname))
         label = f"α={alpha:.2f}"
         images.append((label, img))
 
-    # B al final (alpha=0 implica B)
     origB_img = Image.open(os.path.join(output_dir, f"original_{idxB}.png"))
     images.append((f"B ({idxB})", origB_img))
 
-    # dimensiones
     widths, heights = zip(*(img.size for label, img in images))
     total_width = sum(widths)
     max_height = max(heights) + 40  # espacio para texto

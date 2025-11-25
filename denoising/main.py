@@ -1,5 +1,3 @@
-
-
 import datetime
 import time
 import numpy as np
@@ -7,13 +5,14 @@ import matplotlib.pyplot as plt
 import tqdm
 import os
 from error_utils import compare_pixel_error, plot_error, read_errors_from_file
-from autoenconder import BasicAutoencoder
+from autoenconder import BasicAutoencoder, add_salt_and_pepper_noise, add_gaussian_noise
 import logging as log
 from read_utils import plot_character, get_font3, to_binary_array
+from arch_comp import run_noise_experiments
 
 INPUT_SIZE = 5 * 7
 LATENT_SIZE = 2
-EPOCHS = 100000
+EPOCHS = 25000
 TEST_TRIES = 100
 
 log.basicConfig(level=log.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,72 +21,12 @@ log.basicConfig(level=log.ERROR, format='%(asctime)s - %(levelname)s - %(message
 def compare_arrays(arr1, arr2) -> bool:
     return np.array_equal(arr1, arr2)
 
-# def main():
-
-#     encoder = BasicAutoencoder(
-#         [35, 16, 8, 4, 2],
-#         learning_rate=0.1,
-#         epsilon=1e-4,
-#         optimizer='sgd',
-#         activation_function='tanh',
-#         seed=42
-#     )
-
-#     #train
-#     characters = get_font3()
-#     characters = characters[:1]  # use only first 10 characters
-#     # binary_characters = [to_binary_array(character) for character in characters]
-#     binary_characters_flattened = [character.reshape(1, -1) for character in (to_binary_array(character) for character in characters)]
-
-        
-#     # print("Initializing from file...")
-#     # encoder.initialize_from_file_pickle("outputs/autoencoder_state_103939.17.11.2025.pkl")
-
-#     error_by_epoch = []
-
-#     for epoch in tqdm.tqdm(range(EPOCHS), desc="Training Autoencoder"):
-
-#         error_by_character = []
-
-#         for character_flattened in binary_characters_flattened:
-#             encoder.train(character_flattened, character_flattened, 1)
-
-#             #===== compute error for graphs =====
-#             output = encoder.predict(character_flattened)
-#             error = compare_pixel_error(character_flattened, output)
-#             error_by_character.append(error)
-#             #====================================
-#         error_by_epoch.append(error_by_character)
-
-#     with open("outputs/errors.txt", "w") as f:
-#         for epoch_errors in error_by_epoch:
-#             f.write(",".join(map(str, epoch_errors)) + "\n")
-
-#     # errors_by_epoch = read_errors_from_file("outputs/errors.txt")
-#     # plot_error(errors_by_epoch, output_path="outputs/error_over_epochs.png")
-
-#     # Read errors from file
-    
-
-#     # Test
-#     for idx, character in enumerate(binary_characters_flattened):
-#         result = []
-#         output = encoder.predict(character)
-#         output_reshaped = output.reshape(7, 5)
-
-#         plot_character(output_reshaped, output_path="outputs/character_{}.png".format(idx + 1))
-
-#     print("saving model state...")
-#     # encoder.save_state("autoencoder_state_{}.txt".format(time.strftime("%H%M%S.%d.%m.%Y")))
-#     encoder.save_state_pickle("autoencoder_state_{}.pkl".format(time.strftime("%H%M%S.%d.%m.%Y")))
-
 def save_error_to_file(arq, errors, file_path):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     errors_str = ",".join(map(str, errors))
     with open(file_path, "a") as f:
         line = f"{arq};{timestamp};{errors_str}\n"
         f.write(line)
-
 
 def plot_latent_space(encoder, X, labels=None, output_path='latent_space.png'):
     """Plot latent space representations in 2D."""
@@ -156,40 +95,30 @@ def plot_latent_space(encoder, X, labels=None, output_path='latent_space.png'):
 
 def main2():
 
-    ## Hiperparametros claves: [35,25,18,12,8,4,3], learning_rate=0.001, epsilon=1e-4, optimizer='adam', activation_function='tanh', seed=42
-
     encoder = BasicAutoencoder(
-        ##[35,25,18,12,8,4,2],
-        [35,20,10,2],
-        ##[35, 16, 8, 4, 2],
-        ## probar con threshold ( 0.5 )
-        ## Probar con 3 / 4 en la capa intermedia
+        [35,30,25,20,15,10,5,2],
+
         learning_rate=0.001,
         epsilon=1e-4,
         optimizer='adam',
         activation_function='tanh',
+        noise_amount=0.2,
+        sigma=0.0,
         seed=42
     )
 
     #train
     characters = get_font3()
-    #characters = [characters[-1]]  
-    # binary_characters = [to_binary_array(character) for character in characters]
     binary_characters = np.array([
         to_binary_array(character).flatten() 
         for character in characters
     ])
 
-
-        
-    # print("Initializing from file...")
-    # encoder.initialize_from_file_pickle("outputs/autoencoder_state_103939.17.11.2025.pkl")
-
     error_by_epoch = []
 
     errors = encoder.train(binary_characters, epochs=EPOCHS)
 
-    save_error_to_file("adam", errors, "outputs/errors.txt")
+    save_error_to_file("GoodArq", errors, "outputs/errors.txt")
 
     plt.plot(errors)
     plt.xlabel("Epochs")
@@ -198,12 +127,12 @@ def main2():
     plt.savefig("outputs/error_over_epochs.png")
     plt.close()
 
-    # with open("outputs/errors.txt", "a") as f:
-    #     for epoch_errors in error_by_epoch:
-    #         f.write(",".join(map(str, epoch_errors)) + "\n")
+    with open("outputs/errors.txt", "w") as f:
+        for epoch_errors in error_by_epoch:
+            f.write(",".join(map(str, epoch_errors)) + "\n")
 
-    # errors_by_epoch = read_errors_from_file("outputs/errors.txt")
-    # plot_error(errors_by_epoch, output_path="outputs/error_over_epochs.png")
+    errors_by_epoch = read_errors_from_file("outputs/errors.txt")
+    plot_error(errors_by_epoch, output_path="outputs/error_over_epochs.png")
 
     #Read errors from file
     
@@ -221,8 +150,105 @@ def main2():
     plot_latent_space(encoder, binary_characters, labels=labels_chars, 
                     output_path="outputs/latent_space.png")
     print("saving model state...")
-    # encoder.save_state("autoencoder_state_{}.txt".format(time.strftime("%H%M%S.%d.%m.%Y")))
     encoder.save_state_pickle("autoencoder_state_{}.pkl".format(time.strftime("%H%M%S.%d.%m.%Y")))
+
+    # --- Guardar caracteres con ruido vs reconstruidos ---
+    os.makedirs("outputs/noisy_vs_predicted", exist_ok=True)
+
+    all_originals = []
+    all_noisy = []
+    all_predicted = []
+
+    for idx, character in enumerate(binary_characters):
+
+        # Generar ruido con la misma función usada en entrenamiento,
+        # pero sobre UN SOLO carácter.
+        if encoder.noise_amount!=0.0:
+            noisy_char = add_salt_and_pepper_noise(
+                character.reshape(1, -1),
+                noise_amount=encoder.noise_amount
+            )
+        if encoder.sigma!=0.0:
+            noisy_char = add_gaussian_noise(
+                character.reshape(1, -1),
+                sigma=encoder.sigma
+            )
+
+        # Obtener reconstrucción del carácter ruidoso
+        predicted = encoder.predict(noisy_char).reshape(7, 5)
+        noisy_reshaped = noisy_char.reshape(7, 5)
+        original_reshaped = character.reshape(7, 5)
+
+        # Guardar en listas
+        all_originals.append(original_reshaped)
+        all_noisy.append(noisy_reshaped)
+        all_predicted.append(predicted)
+
+        fig, axes = plt.subplots(1, 3, figsize=(9, 4))
+
+        # Reshape del character original a 7x5
+        axes[0].imshow(character.reshape(7, 5), cmap='gray_r')
+        axes[0].set_title("Original")
+        axes[0].axis('off')
+
+        axes[1].imshow(noisy_reshaped, cmap='gray_r')
+        axes[1].set_title("Noisy Input")
+        axes[1].axis('off')
+
+        axes[2].imshow(predicted, cmap='gray_r')
+        axes[2].set_title("Predicted Output")
+        axes[2].axis('off')
+
+        plt.tight_layout()
+        fig.savefig(f"outputs/noisy_vs_predicted/comparison_{idx+1}.png", dpi=120)
+        plt.close()
+
+    rows = 6
+    cols = 6
+    fig, axes = plt.subplots(1, 3, figsize=(18, 12))
+
+    for col_idx, (images, title) in enumerate([
+        (all_originals, "Original"),
+        (all_noisy, "Noisy Input"),
+        (all_predicted, "Predicted Output")
+    ]):
+        grid = np.ones((rows * 7 + (rows-1) * 2, cols * 5 + (cols-1) * 2)) * 0 
+        
+        for i, img in enumerate(images):
+            if i >= rows * cols:
+                break
+            row = i // cols
+            col = i % cols
+            
+            y_start = row * (7 + 2)
+            x_start = col * (5 + 2)
+            
+            grid[y_start:y_start+7, x_start:x_start+5] = img
+        
+        axes[col_idx].imshow(grid, cmap='gray_r')
+        axes[col_idx].set_title(title, fontsize=16)
+        axes[col_idx].axis('off')
+
+    plt.tight_layout()
+    fig.savefig("outputs/noisy_vs_predicted/all_comparisons_grid.png", dpi=150, bbox_inches='tight')
+    plt.close()
+
+    print("Saved comparison images in outputs/noisy_vs_predicted/")
 
 if __name__ == "__main__":
     main2()
+    # characters = get_font3()
+    # binary_characters = np.array([
+    #     to_binary_array(character).flatten() 
+    #     for character in characters
+    # ])
+
+    # architectures = [
+    #     [35,25,15,2],
+    #     [35,30,25,20,15,10,5,2],
+    #     [35,25,18,12,8,4,2],
+    # ]
+
+    # labels = np.array([chr(i) for i in range(0x60, 0x80)])
+
+    # run_noise_experiments(binary_characters, labels, architectures)
