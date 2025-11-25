@@ -203,8 +203,8 @@ class VAE(BasicAutoencoder):
         # Gradientes totales
 
         #tiene en cuenta el beta annealing
-        dmu = dmu_recon + (dmu_kl * beta)  # (batch_size, latent_dim)
-        dlogvar = dlogvar_recon + (dlogvar_kl * beta)  # (batch_size, latent_dim)
+        dmu = dmu_recon  + (dmu_kl * beta)  # (batch_size, latent_dim)
+        dlogvar = dlogvar_recon  + (dlogvar_kl * beta)  # (batch_size, latent_dim)
 
         # Gradientes de los pesos y biases de mu y logvar
         A_enc_last = activations_enc[-1]  # (batch_size, encoder_arch[-1])
@@ -388,8 +388,8 @@ class VAE(BasicAutoencoder):
             # beta = np.tanh(epoch/epochs)
             # beta = np.sin(6 *epoch/epochs)**2
             # beta = np.cos(2* epoch/epochs)**2
-            beta = 0.01 / (1 - (epoch/epochs)**(1/4))
-            grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec, beta=beta)
+            beta = 0.01 / (1 - (epoch/epochs))
+            grads = self.backward(X, X, acts_enc, zv_enc, acts_dec, zv_dec)
             
             self.update(*grads)
             # self.save_gradients_and_weights_to_csv(*grads, epoch)

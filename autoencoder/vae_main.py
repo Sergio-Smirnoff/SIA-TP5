@@ -40,17 +40,17 @@ def test_with_bmp_vae():
         ],
         learning_rate=0.001,
         optimizer="adam",
-        activation_function="sigmoid",
+        activation_function="tanh",
         seed=42
     )
 
     # -----------------------------
     # 3. Entrenar
     # -----------------------------
-    EPOCHS = 200
+    EPOCHS = 300
     print("\nEntrenando VAE...")
-    vae.train(dataset_flat, epochs=EPOCHS)
-    # vae.load_state_pickle("bmp_images/500_200621-23-11-2025.pkl")  el q daba bien el ryu
+    # vae.train(dataset_flat, epochs=EPOCHS)
+    vae.load_state_pickle("bmp_images/usame.pkl")
 
     # -----------------------------
     # 4. Reconstruir las imágenes
@@ -77,14 +77,35 @@ def test_with_bmp_vae():
     print("\nGenerando nuevas imágenes desde el espacio latente...")
     new_images = []
 
-    for z in latent_codes:
-        z_mod = z.copy()
+    # for z in latent_codes:
+    z_mod_0 = latent_codes[0].copy()
+    z_mod_0[0, 0] += 1.0
+    # z_mod[0, 1] += -2.0
+    decoded = vae.decode(z_mod_0)
+    new_images.append(decoded[0])
 
-        # ⬆️ mover 1 unidad en eje Y del espacio latente
-        z_mod[0, 0] += 1.0
+    # for z in latent_codes:
+    z_mod_0 = latent_codes[0].copy()
+    z_mod_0[0, 0] += 2.0
+    # z_mod[0, 1] += -2.0
+    decoded = vae.decode(z_mod_0)
+    new_images.append(decoded[0])
 
-        decoded = vae.decode(z_mod)
-        new_images.append(decoded[0])
+    # for z in latent_codes:
+    z_mod_0 = latent_codes[0].copy()
+    z_mod_0[0, 0] += 3.0
+    # z_mod[0, 1] += -2.0
+    decoded = vae.decode(z_mod_0)
+    new_images.append(decoded[0])
+
+    # for z in latent_codes:
+    z_mod_0 = latent_codes[0].copy()
+    z_mod_0[0, 0] += 4.0
+    # z_mod[0, 1] += -2.0
+    decoded = vae.decode(z_mod_0)
+    new_images.append(decoded[0])
+    
+
 
     new_images = np.array(new_images).reshape(n_images, H, W, C)
 
@@ -114,7 +135,7 @@ def test_with_bmp_vae():
             original_shape=(H, W, C)
         )
 
-    vae.save_state_pickle(f'bmp_images/{EPOCHS}_{time.strftime("%H%M%S-%d-%m-%Y")}.pkl')
+    # vae.save_state_pickle(f'usame.pkl')
     print("\n===== TEST COMPLETADO EXITOSAMENTE =====")
 
 
@@ -135,11 +156,11 @@ def test_with_bits():
     emojis_flattened = np.array([emoji.flatten() for emoji in emojis])
     
     EPOCHS = 10000
-    vae.load_state_pickle(f'bmp_images/10000_143709-23-11-2025.pkl')
+    # vae.load_state_pickle(f'bmp_images/10000_191657-24-11-2025.pkl')
 
     print("EMOJIS")
     print(emojis_flattened)
-    # history = vae.train(emojis_flattened, epochs=EPOCHS)
+    history = vae.train(emojis_flattened, epochs=EPOCHS)
 
     activations_enc, z_values_enc, activations_dec, z_values_dec = vae.forward(emojis_flattened)
     print('RESULT EMOJIS')
@@ -167,17 +188,18 @@ def test_with_bits():
 
     # ---- Generación de nuevos samples ----
 
-    for z in new_zs:
-        z_mod = z.copy()
+    # for z in new_zs:
+    z_mod_0 = new_zs[0].copy()
+    z_mod_0[0, 1] += -0.5  # sumar 1 en Y
+    z_mod_0[0, 0] += -0.5  # sumar 1 en X
+    new_emoji = vae.decode(z_mod_0)
+    new_emojis.append(new_emoji[0])  # <-- vector 35
 
-        print(f'ZPREV={z_mod}')
-        z_mod[0, 1] += 100.0  # sumar 1 en Y
-        # z_mod[0, 0] += 0.3  # sumar 1 en Y
-
-
-        print(f'ZMOD={z_mod}')
-        new_emoji = vae.decode(z_mod)
-        new_emojis.append(new_emoji[0])  # <-- vector 35
+    z_mod_0 = new_zs[0].copy()
+    z_mod_0[0, 1] += -0.3  # sumar 1 en Y
+    z_mod_0[0, 0] += +1  # sumar 1 en X
+    new_emoji = vae.decode(z_mod_0)
+    new_emojis.append(new_emoji[0])  # <-- vector 35
 
     # ---- Plot ----
 
@@ -187,11 +209,6 @@ def test_with_bits():
     plot_all_emojis(reconstructed_bin, "reconstructed_emojis.png")
     plot_all_emojis(new_bin, "new_emojis_XY.png")
 
-
-
-
-
-    # generate_random_samples(vae)
     # vae.save_state_pickle(f'bmp_images/{EPOCHS}_{time.strftime("%H%M%S-%d-%m-%Y")}.pkl')
 
 def prepare_emojis_for_plot(decoded_output, threshold=0.5):
